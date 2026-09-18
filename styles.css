@@ -9,6 +9,7 @@ body{background:var(--bg);color:var(--ink)}.sidebar{background:#0e1719}.topbar{b
 .icon{width:1em;height:1em;display:inline-block;vertical-align:-.16em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.brand-mark .icon{width:17px;height:17px}.nav-item>span,.settings-btn>span,.icon-button>span:first-child,.primary-btn>span,.secondary-btn>span,.text-btn>span{display:inline-flex;align-items:center;justify-content:center;line-height:1}.nav-item>span{width:18px;font-size:18px}.tip-icon{display:inline-flex;font-size:22px}.wave{display:inline-flex;font-size:20px}.search-field{position:relative;display:flex;align-items:center}.search-field>span{position:absolute;left:13px;color:#8b9790;font-size:15px}.search-field .search-input{padding-left:35px}.transaction-icon .icon{width:16px;height:16px}.table-category-icon{display:flex;align-items:center;gap:7px}.table-category-icon .icon{width:15px;height:15px;color:var(--teal)}.goal-symbol .icon{width:20px;height:20px}.primary-btn,.secondary-btn,.text-btn,.icon-button{display:inline-flex;align-items:center;gap:7px}
 .category-row{grid-template-columns:9px 18px 1fr auto}.category-icon{display:inline-flex;color:var(--teal)}.category-icon .icon{width:15px;height:15px}
 .storage-warning{max-width:1250px;margin:14px auto 0;padding:10px 5.3%;color:#75622e;background:#fff8df;border-bottom:1px solid #f2e2ab;font-size:12px}
+.mobile-menu-btn{display:none;background:transparent;color:var(--teal);min-width:44px;min-height:44px;padding:8px}.mobile-menu-btn .icon{width:20px;height:20px}
 @media (max-width:600px){
   html,body{max-width:100%;overflow-x:hidden}
   body{padding-bottom:76px}
@@ -21,6 +22,7 @@ body{background:var(--bg);color:var(--ink)}.sidebar{background:#0e1719}.topbar{b
   .nav-item.active,.nav-item:hover{box-shadow:none}
   .main{width:100%;min-width:0}
   .topbar{height:60px;padding:0 16px}
+  .mobile-menu-btn{display:inline-flex;align-items:center;justify-content:center}
   .mobile-brand{display:flex;align-items:center;gap:8px;margin-right:auto;font-size:16px}
   .topbar-actions{gap:10px}
   .icon-button{min-height:44px;padding:8px 4px}
@@ -66,4 +68,9 @@ body{background:var(--bg);color:var(--ink)}.sidebar{background:#0e1719}.topbar{b
   .savings-hero{padding:20px;gap:20px}
   .report-actions{width:100%;display:grid;gap:10px}
   .report-actions>*{width:100%;min-height:44px}
+  .sidebar.mobile-menu-open{display:flex}
+  .sidebar.mobile-menu-open{top:60px;bottom:auto;height:auto;max-height:calc(100vh - 60px);padding:14px 16px;background:rgba(255,255,255,.98);border-top:0;border-bottom:1px solid var(--line);overflow:auto}
+  .sidebar.mobile-menu-open .nav{display:flex;flex-direction:column;height:auto;gap:6px}
+  .sidebar.mobile-menu-open .nav-item{min-height:48px;padding:10px 14px;display:flex;flex-direction:row;justify-content:flex-start;gap:13px;text-align:left;font-size:14px}
+  .sidebar.mobile-menu-open .nav-item>span{width:18px;height:22px}
 }
