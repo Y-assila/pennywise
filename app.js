@@ -109,7 +109,7 @@ async function unlockApp() {
 
 async function initAuth() {
   if (!window.crypto?.subtle) {
-    showAuth("setup", "This browser does not support the secure password storage required by the app.");
+    showAuth("setup", "Secure password storage is unavailable here. Open the app from its HTTPS GitHub Pages URL or localhost, not an unsupported browser context.");
     $("#authSubmit").disabled = true;
     return;
   }
