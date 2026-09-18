@@ -7,7 +7,9 @@ Pennywise is a private, local-first personal finance tracker.
 - `index.html` - public landing page for GitHub Pages
 - `app.html` - local finance dashboard
 
-Financial data is stored in the browser's local storage. The app does not connect to a bank or send financial data to a server.
+Financial data is stored in the browser's IndexedDB. Passwords are hashed locally with the Web Crypto API. The app does not connect to a bank or send financial data to a server.
+
+Your data is stored only on this device. Use Export CSV/PDF to back it up.
 
 ## Publish with GitHub Pages
 

@@ -14,9 +14,46 @@ const h = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const money = value => `${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number(value))} ${data.settings.currency || "MAD"}`;
 const dateAtNoon = value => new Date(`${value}T12:00:00`);
-const save = () => localStorage.setItem("pennywise-data", JSON.stringify(data));
+const databaseName = "pennywise-db";
+const databaseVersion = 1;
+let activeProfile = null;
+let databasePromise;
+function openDatabase() {
+  if (databasePromise) return databasePromise;
+  databasePromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(databaseName, databaseVersion);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains("profiles")) database.createObjectStore("profiles", { keyPath: "username" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("IndexedDB could not be opened."));
+  });
+  return databasePromise;
+}
+async function getProfile(username) {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const request = database.transaction("profiles", "readonly").objectStore("profiles").get(username);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("Profile could not be read."));
+  });
+}
+async function putProfile(profile) {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const request = database.transaction("profiles", "readwrite").objectStore("profiles").put(profile);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Profile could not be saved."));
+  });
+}
+const profileKey = value => String(value || "").trim().toLocaleLowerCase();
+const save = async () => {
+  if (!activeProfile) return;
+  activeProfile.data = cleanData(data);
+  try { await putProfile(activeProfile); } catch (error) { console.warn("Pennywise data could not be saved to IndexedDB.", error); toast("Could not save your latest change."); }
+};
 const toast = message => { const node = $("#toast"); if (node) { node.textContent = message; node.classList.add("show"); setTimeout(() => node.classList.remove("show"), 2600); } };
-const authStorageKey = "pennywise-auth";
 let unlocked = false;
 
 function bytesToBase64(bytes) {
@@ -52,6 +89,7 @@ function showAuth(mode, message = "") {
   $("#authTitle").textContent = setup ? "Create your password" : "Welcome back";
   $("#authDescription").textContent = setup ? "Choose a password to protect this browser’s local finance data." : "Enter your local password to unlock your finance tracker.";
   $("#authConfirmLabel").hidden = !setup;
+  $("#authNameLabel").hidden = false;
   $("#authConfirm").required = setup;
   $("#authPassword").autocomplete = setup ? "new-password" : "current-password";
   $("#authSubmit").textContent = setup ? "Create password" : "Unlock app";
@@ -61,6 +99,8 @@ function showAuth(mode, message = "") {
 }
 
 async function unlockApp() {
+  data = cleanData(activeProfile?.data || seed);
+  data.settings.name = activeProfile?.name || data.settings.name;
   unlocked = true;
   document.body.classList.add("app-unlocked");
   expandRecurringTransactions();
@@ -73,20 +113,46 @@ async function initAuth() {
     $("#authSubmit").disabled = true;
     return;
   }
-  showAuth(localStorage.getItem(authStorageKey) ? "login" : "setup");
+  let profileExists = false;
+  try {
+    const database = await openDatabase();
+    profileExists = await new Promise((resolve, reject) => {
+      const request = database.transaction("profiles", "readonly").objectStore("profiles").count();
+      request.onsuccess = () => resolve(request.result > 0);
+      request.onerror = () => reject(request.error || new Error("Profiles could not be read."));
+    });
+  } catch (error) {
+    console.warn("IndexedDB initialization failed.", error);
+    showAuth("setup", "Secure local storage could not be opened in this browser.");
+    $("#authSubmit").disabled = true;
+    return;
+  }
+  showAuth(profileExists ? "login" : "setup");
   $("#authForm").onsubmit = async event => {
     event.preventDefault();
-    const record = JSON.parse(localStorage.getItem(authStorageKey) || "null");
+    const username = profileKey($("#authName").value);
     const password = $("#authPassword").value;
     const confirmPassword = $("#authConfirm").value;
-    if (password.length < 8) return showAuth(record ? "login" : "setup", "Use at least 8 characters.");
+    if (!username) return showAuth(profileExists ? "login" : "setup", "Enter your profile name.");
+    if (password.length < 8) return showAuth(profileExists ? "login" : "setup", "Use at least 8 characters.");
+    let record;
+    try {
+      record = await getProfile(username);
+    } catch (error) {
+      console.warn("Profile lookup failed.", error);
+      return showAuth(profileExists ? "login" : "setup", "Your local profile could not be opened.");
+    }
+    if (profileExists && !record) return showAuth("login", "Profile not found.");
     if (!record && password !== confirmPassword) return showAuth("setup", "Passwords do not match.");
     try {
       if (record) {
-        if (!await passwordMatches(password, record)) return showAuth("login", "Incorrect password.");
+        if (!await passwordMatches(password, record.password)) return showAuth("login", "Incorrect password.");
       } else {
-        localStorage.setItem(authStorageKey, JSON.stringify(await passwordRecord(password)));
+        activeProfile = { username, name: $("#authName").value.trim().slice(0, 80), password: await passwordRecord(password), data: cleanData(seed) };
+        profileExists = true;
+        await putProfile(activeProfile);
       }
+      activeProfile = record || activeProfile;
       await unlockApp();
     } catch (error) {
       console.warn("Local authentication failed.", error);
@@ -94,22 +160,20 @@ async function initAuth() {
     }
   };
   $("#resetPasswordBtn").onclick = () => {
-    if (!confirm("Forgotten password recovery will replace only the local app password. Your financial data will stay intact. Continue?")) return;
-    localStorage.removeItem(authStorageKey);
-    showAuth("setup", "Create a new password to continue.");
+    toast("To protect your data, password recovery is not available. Use the correct profile password.");
   };
 }
 
 async function changePassword() {
   const current = prompt("Enter your current local password.");
   if (current === null) return;
-  const record = JSON.parse(localStorage.getItem(authStorageKey) || "null");
-  if (!record || !await passwordMatches(current, record)) return toast("Current password is incorrect.");
+  if (!activeProfile || !await passwordMatches(current, activeProfile.password)) return toast("Current password is incorrect.");
   const next = prompt("Enter a new password (at least 8 characters).");
   if (next === null) return;
   const confirmation = prompt("Confirm the new password.");
   if (next.length < 8 || next !== confirmation) return toast("New passwords must match and be at least 8 characters.");
-  localStorage.setItem(authStorageKey, JSON.stringify(await passwordRecord(next)));
+  activeProfile.password = await passwordRecord(next);
+  await putProfile(activeProfile);
   toast("Local password changed.");
 }
 
@@ -140,18 +204,7 @@ function cleanData(input) {
   };
 }
 
-function loadData() {
-  let parsed = null;
-  try { parsed = JSON.parse(localStorage.getItem("pennywise-data") || "null"); } catch (error) { console.warn("Pennywise data could not be read; using an empty dataset.", error); }
-  const version = Number(localStorage.getItem("pennywise-version") || 0);
-  const migrated = cleanData(parsed || seed);
-  if (version < storageVersion || !parsed) {
-    localStorage.setItem("pennywise-version", String(storageVersion));
-    localStorage.setItem("pennywise-data", JSON.stringify(migrated));
-  }
-  return migrated;
-}
-let data = loadData();
+let data = cleanData(seed);
 let currentType = "expense";
 let currentFilter = "all";
 let editingTransactionId = null;

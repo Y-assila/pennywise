@@ -15,13 +15,14 @@
       <h1 id="authTitle">Create your password</h1>
       <p class="muted" id="authDescription">Choose a password to protect this browser’s local finance data.</p>
       <form id="authForm">
+        <label id="authNameLabel">Profile name<input id="authName" type="text" maxlength="80" autocomplete="username" required></label>
         <label>Password<input id="authPassword" type="password" minlength="8" autocomplete="new-password" required></label>
         <label id="authConfirmLabel">Confirm password<input id="authConfirm" type="password" minlength="8" autocomplete="new-password" required></label>
         <p class="auth-error" id="authError" role="alert"></p>
         <button class="primary-btn full" type="submit" id="authSubmit">Create password</button>
         <button class="auth-reset" type="button" id="resetPasswordBtn" hidden>Forgot password? Create a new one</button>
       </form>
-      <small class="muted auth-note">This is a local browser lock. It does not connect to CIH, BOA, or any bank.</small>
+      <small class="muted auth-note">Your data is stored only on this device. Use Export CSV/PDF to back it up.</small>
     </div>
   </section>
   <div class="app-shell">
@@ -53,6 +54,7 @@
           <button class="avatar" aria-label="Profile">JS</button>
         </div>
       </header>
+      <div class="storage-warning" role="note">Your data is stored only on this device. Use Export CSV/PDF to back it up.</div>
 
       <div class="content">
         <section class="view active" id="overviewView">
