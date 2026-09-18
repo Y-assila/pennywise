@@ -74,3 +74,19 @@ body{background:var(--bg);color:var(--ink)}.sidebar{background:#0e1719}.topbar{b
   .sidebar.mobile-menu-open .nav-item{min-height:48px;padding:10px 14px;display:flex;flex-direction:row;justify-content:flex-start;gap:13px;text-align:left;font-size:14px}
   .sidebar.mobile-menu-open .nav-item>span{width:18px;height:22px}
 }
+@media (max-width:600px){
+  body{padding-bottom:0}
+  .sidebar{display:none;position:fixed;top:60px;right:12px;bottom:auto;left:12px;width:auto;height:auto;max-height:calc(100vh - 76px);padding:14px;background:rgba(255,255,255,.98);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 35px rgba(26,46,39,.16);overflow:auto}
+  .sidebar.mobile-menu-open{display:flex;top:60px;right:12px;bottom:auto;left:12px;height:auto;max-height:calc(100vh - 76px);padding:14px}
+  .sidebar:not(.mobile-menu-open)>.brand,.sidebar:not(.mobile-menu-open)>.eyebrow,.sidebar:not(.mobile-menu-open)>.nav,.sidebar:not(.mobile-menu-open)>.sidebar-bottom{display:none}
+  .sidebar.mobile-menu-open>.brand{display:flex;margin:2px 4px 18px}
+  .sidebar.mobile-menu-open>.eyebrow{display:block;margin:0 4px 10px}
+  .sidebar.mobile-menu-open .nav{display:flex;flex-direction:column;height:auto;gap:4px}
+  .sidebar.mobile-menu-open .nav-item{min-height:48px;padding:10px 12px;display:flex;flex-direction:row;justify-content:flex-start;gap:13px;text-align:left;font-size:14px}
+  .sidebar.mobile-menu-open .nav-item>span{width:18px;height:22px}
+  .sidebar.mobile-menu-open .sidebar-bottom{display:block;margin-top:12px}
+  .sidebar.mobile-menu-open .tip-card{display:none}
+  .sidebar.mobile-menu-open .settings-btn{min-height:48px}
+  .topbar{position:sticky;top:0;z-index:12;background:rgba(247,247,243,.96);backdrop-filter:blur(12px)}
+  #addTransactionBtn,#addTransactionBtn2{bottom:18px}
+}
