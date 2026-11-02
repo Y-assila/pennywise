@@ -90,3 +90,101 @@ body{background:var(--bg);color:var(--ink)}.sidebar{background:#0e1719}.topbar{b
   .topbar{position:sticky;top:0;z-index:12;background:rgba(247,247,243,.96);backdrop-filter:blur(12px)}
   #addTransactionBtn,#addTransactionBtn2{bottom:18px}
 }
+
+.storage-warning.stale{background:#ffeee9;color:#9a3d28;border-bottom-color:#f6c9bd}
+
+.heading-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.month-nav{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.month-nav strong{min-width:130px;text-align:center;font-size:13px}
+.month-nav button{width:30px;height:30px;border-radius:8px;background:transparent;font-size:18px}
+.month-nav button:hover:not(:disabled){background:var(--teal-light)}
+.month-nav button:disabled{opacity:.35;cursor:default}
+#budgetAlerts{display:grid;gap:8px;margin-bottom:16px}
+#budgetAlerts:empty{display:none}
+.budget-alert{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;border-radius:10px;background:#fff8df;color:#75622e;border:1px solid #f2e2ab;font-size:13px}
+.budget-alert.over{background:#ffeee9;color:#9a3d28;border-color:#f6c9bd}
+#transactionSort{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:inherit}
+#showMoreTransactions{margin-top:12px}
+
+/* ===== Polish pass ===== */
+.topbar{background:rgba(11,17,19,.92) !important;backdrop-filter:blur(12px)}
+.mobile-brand{color:var(--ink)}
+.mobile-menu-btn{color:var(--ink);background:transparent}
+.modal-backdrop{z-index:40}.toast{z-index:60}.auth-screen{z-index:80}
+.modal-backdrop.open{backdrop-filter:blur(3px);background:rgba(3,8,9,.72)}
+.modal{max-height:calc(100vh - 40px);overflow-y:auto;width:min(480px,100%)}
+.modal h2{margin-top:4px}
+.modal label{display:block;margin-top:14px}
+.modal .primary-btn.full,.modal .secondary-btn.full,.auth-card .primary-btn.full{justify-content:center;text-align:center}
+.primary-btn.full,.secondary-btn.full{width:100%}
+
+/* messages */
+.toast{left:50%;right:auto;bottom:24px;transform:translate(-50%,24px);max-width:min(92vw,440px);display:flex;gap:10px;align-items:center;padding:13px 18px;font-size:13px;line-height:1.4;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.45);background:#162226}
+.toast.show{transform:translate(-50%,0)}
+.toast.error{border-left-color:var(--coral)}
+.toast::before{content:"✓";color:var(--teal);font-weight:800}
+.toast.error::before{content:"!";color:var(--coral)}
+.storage-warning{background:#1e2a22;color:#cfe3d8;border:0;border-bottom:1px solid var(--line);font-size:12px;padding:10px 5.3%;display:flex;gap:8px;align-items:center}
+.storage-warning.stale{background:#33231f;color:#ffc9bb}
+.storage-warning::before{content:"ⓘ";font-size:14px}
+.auth-error{min-height:20px;margin:10px 0 0;padding:0;color:#ff9a86;font-size:13px}
+.auth-error:not(:empty){padding:10px 12px;border-radius:10px;background:#33231f;border:1px solid #5a3329}
+.auth-note{margin-top:16px}
+.budget-alert{background:#2e2a1a;color:#f2d98a;border-color:#4a4125}
+.budget-alert.over{background:#33231f;color:#ffb5a3;border-color:#5a3329}
+
+/* stat cards: stop overlap and wrapping */
+.stat-card{position:relative;overflow:hidden;min-width:0}
+.stat-value{font-size:clamp(17px,2vw,25px);white-space:nowrap;letter-spacing:-.5px}
+.stat-label{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.stat-meta{margin-bottom:22px}
+.savings-stat .stat-meta{margin-bottom:46px}
+.progress-ring{border-color:#22343a;border-top-color:var(--teal);border-right-color:var(--teal);bottom:14px;right:16px}
+.mini-bar{position:absolute;left:21px;right:21px;bottom:16px}
+.report-stat strong{font-size:clamp(17px,2vw,24px);white-space:nowrap}
+.report-advice ol{padding-left:20px;margin:8px 0 14px}
+.report-advice li{font-size:13px;line-height:1.7;margin-bottom:8px;color:#b7c8c1}
+.report-advice h3{font-size:15px;margin:18px 0 6px}
+.report-advice p{color:#b7c8c1}
+
+/* sidebar settings button */
+.settings-btn{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:9px;background:transparent;color:#9fb1aa;font-size:14px;font-weight:600;text-align:left}
+.settings-btn:hover{background:var(--surface);color:var(--teal)}
+.settings-btn .icon{width:18px;height:18px}
+
+/* settings modal */
+.settings-section{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.settings-section:first-of-type{border-top:0;margin-top:14px;padding-top:0}
+.settings-section h3{margin:0 0 4px;font-size:13px;letter-spacing:.4px;color:var(--muted);text-transform:uppercase}
+.settings-section .form-hint{margin:6px 0 10px;font-size:12px}
+.settings-section .secondary-btn,.settings-section .primary-btn{margin-top:8px}
+.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.settings-row .secondary-btn{margin-top:8px;justify-content:center}
+.danger-btn{color:#ff9a86 !important;border-color:#5a3329 !important;background:#2a1d1b !important}
+.danger-btn:hover{background:#3a2420 !important}
+.modal label .optional{display:block;margin:2px 0 6px;font-weight:400;font-size:11px;color:var(--muted)}
+
+/* empty chart / donut */
+.donut:empty{background:#22302f}
+.pot-card .pot-actions,.goal-card .card-actions{display:flex;gap:14px;margin-top:12px}
+.pot-card,.goal-card{display:flex;flex-direction:column}
+.pot-footer{margin-bottom:6px}
+
+@media (max-width:650px){
+  .toast{bottom:92px}
+  #addTransactionBtn,#addTransactionBtn2{z-index:14}
+  .modal-backdrop{align-items:flex-end;padding:12px}
+  .settings-row{grid-template-columns:1fr}
+  .stat-value{font-size:19px}
+  .storage-warning{padding:10px 16px;font-size:11px}
+}
+
+.transaction-item{flex-wrap:wrap}
+@media (max-width:650px){
+  .transaction-item{display:grid;grid-template-columns:40px 1fr auto;gap:4px 10px;align-items:center}
+  .transaction-item .row-actions{grid-column:2/-1;justify-content:flex-start}
+  .transaction-amount{white-space:nowrap}
+  .table-row{row-gap:6px}
+}
+
+[hidden]{display:none !important}

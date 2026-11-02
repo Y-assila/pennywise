@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10171a">
   <title>Pennywise — Personal finance tracker</title>
-  <link rel="stylesheet" href="styles.css?v=mobile3">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -22,7 +25,7 @@
         <button class="primary-btn full" type="submit" id="authSubmit">Create password</button>
         <button class="auth-reset" type="button" id="resetPasswordBtn" hidden>Forgot password? Create a new one</button>
       </form>
-      <small class="muted auth-note">Your data is stored only on this device. Use Export CSV/PDF to back it up.</small>
+      <small class="muted auth-note">Your data is stored only on this device. Export a backup from Settings to keep it safe. Passwords can’t be recovered.</small>
     </div>
   </section>
   <div class="app-shell">
@@ -52,21 +55,22 @@
         <div class="mobile-brand"><span class="brand-mark" data-icon="sparkles"></span> Pennywise</div>
         <div class="topbar-actions">
           <button class="icon-button" id="exportBtn" title="Export CSV"><span data-icon="download"></span><span>Export CSV</span></button>
-          <button class="avatar" aria-label="Profile">JS</button>
+          <button class="avatar" aria-label="Profile">?</button>
         </div>
       </header>
-      <div class="storage-warning" role="note">Your data is stored only on this device. Use Export CSV/PDF to back it up.</div>
+      <div class="storage-warning" role="note"></div>
 
       <div class="content">
         <section class="view active" id="overviewView">
           <div class="page-heading">
             <div>
               <p class="eyebrow" id="todayLabel"></p>
-              <h1>Good evening <span class="wave" data-icon="sparkles"></span></h1>
-              <p class="muted">Here’s your financial snapshot for this month.</p>
+              <h1><span id="greeting">Hello</span> <span class="wave" data-icon="sparkles"></span></h1>
+              <p class="muted" id="snapshotText">Here’s your financial snapshot for this month.</p>
             </div>
-            <button class="primary-btn" id="addTransactionBtn"><span data-icon="plus"></span> Add transaction</button>
+            <div class="heading-actions"><div class="month-nav"><button id="monthPrev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="monthNext" aria-label="Next month">›</button></div><button class="primary-btn" id="addTransactionBtn"><span data-icon="plus"></span> Add transaction</button></div>
           </div>
+          <div id="budgetAlerts" aria-live="polite"></div>
           <div class="stat-grid">
             <article class="stat-card balance-card">
               <div class="stat-label">TOTAL BALANCE <span class="info">i</span></div>
@@ -89,7 +93,7 @@
             <article class="stat-card savings-stat">
               <div class="stat-label">SAVINGS RATE <span class="period">THIS MONTH⌄</span></div>
               <div class="stat-value" id="savingsRate">0%</div>
-              <div class="stat-meta neutral">Your rule: <strong id="ruleLabel">20%</strong> of income</div>
+              <div class="stat-meta neutral" id="ruleMeta"></div>
               <div class="progress-ring"><span id="ringValue">0%</span></div>
             </article>
           </div>
@@ -120,9 +124,9 @@
         </section>
 
         <section class="view" id="transactionsView">
-          <div class="page-heading"><div><p class="eyebrow">YOUR MONEY MOVEMENT</p><h1>Transactions</h1><p class="muted">Every dollar has a story.</p></div><button class="primary-btn" id="addTransactionBtn2"><span data-icon="plus"></span> Add transaction</button></div>
-          <div class="filter-row"><div class="segmented"><button class="active" data-filter="all">All</button><button data-filter="income">Income</button><button data-filter="expense">Expenses</button></div><label class="search-field"><span data-icon="search"></span><input class="search-input" id="transactionSearch" placeholder="Search transactions"></label></div>
-          <article class="panel table-panel"><div class="table-header"><strong>All activity</strong><span class="muted" id="transactionCount">0 transactions</span></div><div class="transaction-table" id="transactionTable"></div></article>
+          <div class="page-heading"><div><p class="eyebrow">YOUR MONEY MOVEMENT</p><h1>Transactions</h1><p class="muted">Every coin has a story.</p></div><button class="primary-btn" id="addTransactionBtn2"><span data-icon="plus"></span> Add transaction</button></div>
+          <div class="filter-row"><div class="segmented"><button class="active" data-filter="all">All</button><button data-filter="income">Income</button><button data-filter="expense">Expenses</button></div><select id="transactionSort" aria-label="Sort transactions"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="largest">Largest amount</option><option value="smallest">Smallest amount</option></select><label class="search-field"><span data-icon="search"></span><input class="search-input" id="transactionSearch" placeholder="Search transactions"></label></div>
+          <article class="panel table-panel"><div class="table-header"><strong>All activity</strong><span class="muted" id="transactionCount">0 transactions</span></div><div class="transaction-table" id="transactionTable"></div><button class="secondary-btn full" id="showMoreTransactions" hidden>Show more</button></article>
         </section>
 
         <section class="view" id="savingsView">
@@ -141,9 +145,14 @@
         </section>
 
         <section class="view" id="reportsView">
-          <div class="page-heading"><div><p class="eyebrow">LOOKING BACK, MOVING FORWARD</p><h1>Reports</h1><p class="muted">Your money, in plain English.</p></div><div class="report-actions"><select class="report-select" id="reportPeriod"><option value="month">This month</option><option value="week">This week</option></select><button class="primary-btn" id="downloadPdfBtn"><span data-icon="download"></span> Print / save report</button></div></div>
-          <div class="report-stats" id="reportStats"></div>
-          <div class="report-grid"><article class="panel"><div class="panel-heading"><div><h2>Spending trends</h2><p class="muted">Compared with the previous period</p></div></div><div id="trendList"></div></article><article class="panel report-advice"><div class="panel-heading"><div><h2>Your personalized report</h2><p class="muted">A few words from Pennywise</p></div></div><div id="reportAdvice"></div></article></div>
+          <div class="page-heading"><div><p class="eyebrow">LOOKING BACK, MOVING FORWARD</p><h1>Reports</h1><p class="muted">A detailed financial report you can print or save as PDF.</p></div>
+            <div class="report-actions">
+              <select class="report-select" id="reportPeriod" aria-label="Report period"><option value="month">Selected month</option><option value="week">Current week</option><option value="quarter">Last 3 months</option><option value="half">Last 6 months</option><option value="ytd">Year to date</option><option value="year">Last 12 months</option><option value="custom">Custom range</option></select>
+              <span class="report-custom" id="reportCustom" hidden><input type="date" id="reportFrom" aria-label="From"><input type="date" id="reportTo" aria-label="To"></span>
+              <button class="secondary-btn" id="exportReportCsvBtn"><span data-icon="download"></span> CSV</button>
+              <button class="primary-btn" id="downloadPdfBtn"><span data-icon="download"></span> Print / save PDF</button>
+            </div></div>
+          <div id="reportBody"></div>
         </section>
       </div>
     </main>
@@ -152,12 +161,33 @@
   <div class="modal-backdrop" id="transactionModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">ADD TO YOUR STORY</p><h2>New transaction</h2><div class="type-toggle"><button class="active" data-type="expense">Money out</button><button data-type="income">Money in</button></div><form id="transactionForm"><label>Amount<input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required></label><div class="form-row"><label>Date<input type="date" id="date" required></label><label>Category / source<select id="category"></select></label></div><div class="form-row"><label>Payment method<select id="payment"><option>Bank transfer</option><option>Debit card</option><option>Credit card</option><option>Cash</option><option>Direct deposit</option></select></label><label>Frequency<select id="frequency"><option>One-time</option><option>Monthly</option><option>Weekly</option></select></label></div><label>Notes <span class="optional">optional</span><input type="text" id="notes" placeholder="What was this for?"></label><button class="primary-btn full" type="submit">Add transaction</button></form></div></div>
   <div class="modal-backdrop" id="goalModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">SET AN INTENTION</p><h2>New goal</h2><form id="goalForm"><label>Goal name<input id="goalName" placeholder="e.g. Trip to Lisbon" required></label><div class="form-row"><label>Target amount<input type="number" id="goalTarget" min="1" step="0.01" placeholder="3000" required></label><label>Deadline<input type="date" id="goalDeadline" required></label></div><button class="primary-btn full" type="submit">Create goal</button></form></div></div>
   <div class="modal-backdrop" id="potModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">CREATE A POCKET</p><h2>New savings pot</h2><form id="potForm"><label>Pot name<input id="potName" placeholder="e.g. New laptop" required></label><div class="form-row"><label>Target amount<input type="number" id="potTarget" min="1" step="0.01" placeholder="1000" required></label><label>Color<select id="potColor"><option value="teal">Teal</option><option value="coral">Coral</option><option value="purple">Purple</option><option value="yellow">Yellow</option></select></label></div><button class="primary-btn full" type="submit">Create pot</button></form></div></div>
-  <div class="modal-backdrop" id="ruleModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">AUTOMATE THE GOOD STUFF</p><h2>Savings rule</h2><form id="ruleForm"><label>Save <span class="inline-input"><input type="number" id="ruleAmount" min="1" step="1" value="20"><select id="ruleType"><option value="percent">% of every income</option><option value="fixed">MAD fixed amount</option></select></span></label><p class="muted form-hint">We’ll use this rule to show how much of your income is protected.</p><button class="primary-btn full" type="submit">Save rule</button></form></div></div>
-  <div class="modal-backdrop" id="budgetModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">SPEND WITH INTENTION</p><h2>Set category budget</h2><form id="budgetForm"><label>Category<select id="budgetCategory"></select></label><label>Monthly limit (MAD)<input type="number" id="budgetAmount" min="1" step="0.01" placeholder="1500" required></label><button class="primary-btn full" type="submit">Save budget</button></form></div></div>
-  <div class="modal-backdrop" id="transferModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">MOVE MONEY WITH INTENTION</p><h2>Transfer to savings</h2><form id="transferForm"><label>Destination<select id="transferDestination"></select></label><label>Amount<input type="number" id="transferAmount" min="0.01" step="0.01" placeholder="100" required></label><p class="muted form-hint">This moves money from your available balance into the selected goal or savings pot.</p><button class="primary-btn full" type="submit">Transfer money</button></form></div></div>
-  <div class="modal-backdrop" id="settingsModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">PROFILE & PREFERENCES</p><h2>Profile & settings</h2><div class="profile-summary"><div class="profile-avatar" id="profileAvatar">JS</div><div><strong id="profileDisplayName">Your profile</strong><p class="muted">Your local Pennywise account</p></div></div><label>Your name<input id="profileName" placeholder="e.g. Jamie"></label><label>Currency<select id="currencySelect"><option value="MAD">MAD</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option></select></label><label>Language<select id="languageSelect"><option value="en">English</option></select></label><button class="primary-btn full" id="saveSettingsBtn" type="button">Save settings</button><button class="secondary-btn full" id="changePasswordBtn" type="button">Change local password</button><button class="secondary-btn full" id="logoutBtn" type="button">Lock app</button><button class="secondary-btn full" id="exportBackupBtn" type="button">Export full backup</button><label class="secondary-btn full" for="importBackupInput">Import backup<input id="importBackupInput" type="file" accept="application/json" hidden></label><p class="muted form-hint">Your data stays in this browser unless you export a backup.</p><button class="secondary-btn full" id="resetDataBtn" type="button">Reset my data</button></div></div>
+  <div class="modal-backdrop" id="ruleModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">AUTOMATE THE GOOD STUFF</p><h2>Savings rule</h2><form id="ruleForm"><label>Save <span class="inline-input"><input type="number" id="ruleAmount" min="1" step="1" value="20"><select id="ruleType"><option value="percent">% of every income</option><option value="fixed">fixed amount per income</option><option value="off">Off (don’t auto-save)</option></select></span></label><p class="muted form-hint">We’ll use this rule to show how much of your income is protected.</p><button class="primary-btn full" type="submit">Save rule</button></form></div></div>
+  <div class="modal-backdrop" id="budgetModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">SPEND WITH INTENTION</p><h2>Set category budget</h2><form id="budgetForm"><label>Category<select id="budgetCategory"></select></label><label>Monthly limit<input type="number" id="budgetAmount" min="1" step="0.01" placeholder="1500" required></label><button class="primary-btn full" type="submit">Save budget</button></form></div></div>
+  <div class="modal-backdrop" id="transferModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">MOVE MONEY WITH INTENTION</p><h2>Move savings money</h2><form id="transferForm"><label>Action<select id="transferDirection"><option value="add">Add money to savings</option><option value="withdraw">Withdraw back to balance</option></select></label><label>Destination<select id="transferDestination"></select></label><label>Amount<input type="number" id="transferAmount" min="0.01" step="0.01" placeholder="100" required></label><p class="muted form-hint">Adding moves money from your available balance into the goal or pot; withdrawing moves it back.</p><button class="primary-btn full" type="submit">Transfer money</button></form></div></div>
+  <div class="modal-backdrop" id="settingsModal"><div class="modal" role="dialog" aria-labelledby="settingsTitle"><button class="close-btn" data-close aria-label="Close">×</button><p class="eyebrow">PROFILE & PREFERENCES</p><h2 id="settingsTitle">Settings</h2>
+    <div class="profile-summary"><div class="profile-avatar" id="profileAvatar">?</div><div><strong id="profileDisplayName">Your profile</strong><p class="muted">Your local Pennywise account</p></div></div>
+    <section class="settings-section"><h3>Profile</h3>
+      <label>Your name<input id="profileName" placeholder="e.g. Jamie" maxlength="80"></label>
+      <label>Currency<span class="optional">Display label only. Amounts are not converted.</span><select id="currencySelect"><option value="MAD">MAD</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option></select></label>
+      <button class="primary-btn full" id="saveSettingsBtn" type="button">Save settings</button>
+    </section>
+    <section class="settings-section"><h3>Security</h3>
+      <p class="muted form-hint">The password locks the app on this device. If you forget it, it can’t be recovered.</p>
+      <div class="settings-row"><button class="secondary-btn" id="changePasswordBtn" type="button">Change password</button><button class="secondary-btn" id="logoutBtn" type="button">Lock app</button></div>
+    </section>
+    <section class="settings-section"><h3>Your data</h3>
+      <p class="muted form-hint" id="backupStatus">Your data stays in this browser unless you export a backup.</p>
+      <div class="settings-row"><button class="secondary-btn" id="exportBackupBtn" type="button">Export backup</button><button class="secondary-btn" id="importBackupBtn" type="button">Import backup</button></div>
+      <input id="importBackupInput" type="file" accept="application/json,.json" hidden>
+    </section>
+    <section class="settings-section"><h3>Danger zone</h3>
+      <p class="muted form-hint">Permanently deletes every transaction, goal and pot in this profile.</p>
+      <button class="secondary-btn full danger-btn" id="resetDataBtn" type="button">Reset my data</button>
+    </section>
+  </div></div>
   <div class="toast" id="toast"></div>
   <script src="icons.js"></script>
-  <script src="app.js?v=fr4"></script>
+  <script src="app.js?v=8"></script>
+  <script src="report.js?v=8"></script>
 </body>
 </html>
