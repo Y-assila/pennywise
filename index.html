@@ -9,6 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="public.css">
+<script>try{var l=localStorage.getItem("pennywise-lang")||(navigator.language||"en").slice(0,2);if(l==="ar"){document.documentElement.lang="ar";document.documentElement.dir="rtl"}else if(l==="fr"){document.documentElement.lang="fr"}}catch(e){}</script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +24,7 @@
       <a href="#open-source">Open source</a>
     </nav>
     <div class="header-actions">
+      <div class="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button><button type="button" data-lang="ar" lang="ar">عربي</button></div>
       <a class="login-link" href="app.html">Open app</a>
       <a class="button button-small" href="app.html">Try Pennywise <span data-icon="arrowUpRight"></span></a>
     </div>
@@ -100,6 +102,8 @@
   </main>
 
   <footer class="site-footer"><a class="brand" href="index.html"><span class="brand-mark" data-icon="sparkles"></span><span>Pennywise</span></a><p>Small steps add up.</p><div><a href="#features">Features</a><a href="#privacy">Privacy</a><a href="app.html">Open app</a></div><small>© 2026 Pennywise. Made for clearer money days.</small></footer>
+  <script src="i18n-landing.js"></script>
+  <script src="i18n.js"></script>
   <script src="icons.js"></script>
 </body>
 </html>

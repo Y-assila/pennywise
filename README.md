@@ -28,3 +28,16 @@ Open `app.html` over HTTPS (GitHub Pages) in Chrome, Edge or Safari and choose *
 ## Reports
 
 The Reports page builds a detailed financial report for the selected month, week, last 3/6/12 months, year to date, or a custom range: executive summary, KPIs compared with the previous period, income vs spending chart, category and income-source tables, largest expenses, budget performance, financial-health indicators, savings and goals, and written insights. Use **Print / save PDF** for a formatted A4 document or **CSV** for the raw tables.
+
+## Features
+
+- **Languages:** English, Français and العربية (full right-to-left layout), switchable from the top bar on every screen, including the landing page. Dates, numbers and the printable report follow the chosen language.
+- **Custom categories:** add, rename, recolour, change icons, or delete categories (Settings > Categories). Renaming updates your transactions; deleting moves them to "Other".
+- **Undo:** every change (add, edit, delete, import, reset, category and recurring changes) shows an **Undo** button for 8 seconds. `Ctrl/Cmd + Z` also works.
+- **Recurring manager:** pause, resume, end or delete subscriptions, salary and rent (Transactions > Recurring).
+- **Bank CSV import:** choose your bank's CSV, match the columns, preview, and import. Handles `;` or `,` separators, `DD/MM/YYYY` dates, `1 234,56` amounts and separate debit/credit columns. Duplicates are skipped, and categories are guessed from the description.
+- **Filters, tags and split:** filter by date, category and tag; split one receipt across several categories.
+- **Safe to spend today:** set a monthly spending limit and the Overview shows how much you can spend per day.
+- **Light and dark themes**, and a short **welcome guide** for new profiles.
+
+Files: `app.html` + `app.js` (core), `features.js` (new features), `report.js` (reports), `i18n.js` and `i18n-landing.js` (translations), `styles.css`, `index.html` + `public.css` (landing page).

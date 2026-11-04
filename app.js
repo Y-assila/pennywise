@@ -1,9 +1,25 @@
-const incomeCategories = ["Salary", "Freelance", "Gifts", "Refunds", "Bonuses", "Investments", "Other"];
-const expenseCategories = ["Rent", "Food", "Transport", "Bills", "Entertainment", "Health", "Debt payments", "Subscriptions", "Shopping", "Other"];
-const categoryColors = { Rent: "#167d72", Food: "#ee785e", Transport: "#f3ba4d", Bills: "#8a78c7", Entertainment: "#7fb9ad", Health: "#d98b70", "Debt payments": "#ad9bda", Subscriptions: "#77a08e", Shopping: "#f0a35a", Other: "#b7c4bd" };
-const icons = { Rent: "home", Food: "food", Transport: "transport", Bills: "bills", Entertainment: "sparkles", Health: "health", "Debt payments": "arrowDown", Subscriptions: "savings", Shopping: "shopping", Other: "overview", Salary: "arrowUpRight", Freelance: "pencil", Gifts: "gift", Refunds: "arrowDown", Bonuses: "sparkles", Investments: "arrowUpRight" };
+const defaultCategories = {
+  expense: [
+    { name: "Rent", color: "#167d72", icon: "home" }, { name: "Food", color: "#ee785e", icon: "food" }, { name: "Transport", color: "#f3ba4d", icon: "transport" },
+    { name: "Bills", color: "#8a78c7", icon: "bills" }, { name: "Entertainment", color: "#7fb9ad", icon: "sparkles" }, { name: "Health", color: "#d98b70", icon: "health" },
+    { name: "Debt payments", color: "#ad9bda", icon: "arrowDown" }, { name: "Subscriptions", color: "#77a08e", icon: "savings" }, { name: "Shopping", color: "#f0a35a", icon: "shopping" },
+    { name: "Other", color: "#b7c4bd", icon: "overview" }
+  ],
+  income: [
+    { name: "Salary", color: "#31b39f", icon: "arrowUpRight" }, { name: "Freelance", color: "#7fb9ad", icon: "pencil" }, { name: "Gifts", color: "#f0a35a", icon: "gift" },
+    { name: "Refunds", color: "#8a78c7", icon: "arrowDown" }, { name: "Bonuses", color: "#f3ba4d", icon: "sparkles" }, { name: "Investments", color: "#77a08e", icon: "arrowUpRight" },
+    { name: "Other", color: "#b7c4bd", icon: "overview" }
+  ]
+};
+const categoryPalette = ["#31b39f", "#ee785e", "#f3ba4d", "#8a78c7", "#7fb9ad", "#d98b70", "#77a08e", "#f0a35a", "#6fa8dc", "#c27ba0"];
+let incomeCategories = [], expenseCategories = [], categoryColors = {}, icons = {};
+function syncCategories() {
+  const c = data.categories || defaultCategories;
+  expenseCategories = c.expense.map(x => x.name); incomeCategories = c.income.map(x => x.name); categoryColors = {}; icons = {};
+  [...c.income, ...c.expense].forEach(x => { categoryColors[x.name] = x.color; icons[x.name] = x.icon; });
+}
 const iconMarkup = name => typeof pennywiseIcon === "function" ? pennywiseIcon(name) : "";
-const seed = { transactions: [], transfers: [], goals: [], pots: [], budgets: [], rule: { amount: 20, type: "percent" }, settings: { name: "", currency: "MAD", language: "en", lastBackup: null } };
+const seed = { transactions: [], transfers: [], goals: [], pots: [], budgets: [], categories: defaultCategories, monthlyLimit: 0, onboarded: false, rule: { amount: 20, type: "percent" }, settings: { name: "", currency: "MAD", language: "en", lastBackup: null } };
 const storageVersion = 3;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -20,7 +36,7 @@ function setViewMonth(offset) {
 }
 const h = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
 const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-const money = value => `${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number(value))} ${data.settings.currency || "MAD"}`;
+const money = value => ltr(`${new Intl.NumberFormat(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number(value))} ${currencyLabel(data.settings.currency || "MAD")}`);
 const dateAtNoon = value => new Date(`${value}T12:00:00`);
 const databaseName = "pennywise-db";
 const databaseVersion = 1;
@@ -62,7 +78,19 @@ const save = async () => {
   try { await putProfile(activeProfile); } catch (error) { console.warn("Pennywise data could not be saved to IndexedDB.", error); toast("Could not save your latest change."); }
 };
 let toastTimer;
-const toast = (message, type) => { const node = $("#toast"); if (!node) return; const isError = type ? type === "error" : /could not|can't|cannot|exceed|enter a|enter your|incorrect|must|invalid|unavailable|not found|not available|failed|rejected|popup/i.test(message); node.textContent = message; node.className = `toast show${isError ? " error" : ""}`; node.setAttribute("role", isError ? "alert" : "status"); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("show"), isError ? 4200 : 2800); };
+const toast = (message, type, options = {}) => {
+  const node = $("#toast"); if (!node) return;
+  const isError = type ? type === "error" : /could not|can't|cannot|exceed|enter a|enter your|incorrect|must|invalid|unavailable|not found|not available|failed|rejected|popup|already exists|less than/i.test(message);
+  node.className = `toast show${isError ? " error" : ""}`; node.setAttribute("role", isError ? "alert" : "status"); node.textContent = tr(message);
+  if (options.undo) { const button = document.createElement("button"); button.type = "button"; button.className = "toast-undo"; button.textContent = tr("Undo"); button.onclick = () => { undoLast(); }; node.appendChild(button); }
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("show"), options.undo ? 8000 : isError ? 4200 : 2800);
+};
+const undoStack = [];
+function pushUndo() { undoStack.push(JSON.stringify(data)); if (undoStack.length > 20) undoStack.shift(); }
+function undoLast() {
+  const snapshot = undoStack.pop(); if (!snapshot) { toast("Nothing to undo."); return; }
+  data = cleanData(JSON.parse(snapshot)); save(); render(); toast("Undone.", "success");
+}
 let unlocked = false;
 
 function bytesToBase64(bytes) {
@@ -113,7 +141,7 @@ async function unlockApp() {
   try { navigator.storage?.persist?.(); } catch (error) { /* best effort */ }
   data = cleanData(activeProfile?.data || seed);
   data.settings.name = activeProfile?.name || data.settings.name;
-  unlocked = true;
+  unlocked = true; undoStack.length = 0;
   document.body.classList.add("app-unlocked");
   expandRecurringTransactions();
   render();
@@ -177,12 +205,12 @@ async function initAuth() {
 }
 
 async function changePassword() {
-  const current = prompt("Enter your current local password.");
+  const current = prompt(tr("Enter your current local password."));
   if (current === null) return;
   if (!activeProfile || !await passwordMatches(current, activeProfile.password)) return toast("Current password is incorrect.");
-  const next = prompt("Enter a new password (at least 8 characters).");
+  const next = prompt(tr("Enter a new password (at least 8 characters)."));
   if (next === null) return;
-  const confirmation = prompt("Confirm the new password.");
+  const confirmation = prompt(tr("Confirm the new password."));
   if (next.length < 8 || next !== confirmation) return toast("New passwords must match and be at least 8 characters.");
   activeProfile.password = await passwordRecord(next);
   await putProfile(activeProfile);
@@ -190,7 +218,7 @@ async function changePassword() {
 }
 
 function lockApp() {
-  unlocked = false; activeProfile = null; data = cleanData(seed); render();
+  unlocked = false; activeProfile = null; undoStack.length = 0; data = cleanData(seed); render();
   closeModals();
   document.body.classList.remove("app-unlocked");
   showAuth("login");
@@ -203,16 +231,28 @@ function cleanData(input) {
     amount: number(t.amount), date: /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : dateKey(today),
     category: String(t.category || "Other").slice(0, 80), payment: String(t.payment || "Cash").slice(0, 50),
     frequency: ["One-time", "Monthly", "Weekly"].includes(t.frequency) ? t.frequency : "One-time",
-    notes: String(t.notes || "").slice(0, 240), generated: Boolean(t.generated), sourceId: t.sourceId || null, occurrence: t.occurrence || null
+    notes: String(t.notes || "").slice(0, 240), generated: Boolean(t.generated), sourceId: t.sourceId || null, occurrence: t.occurrence || null,
+    tags: (Array.isArray(t.tags) ? t.tags : String(t.tags || "").split(",")).map(x => String(x).trim().slice(0, 30)).filter(Boolean).slice(0, 8),
+    splitId: t.splitId || null, paused: Boolean(t.paused), resumeFrom: /^\d{4}-\d{2}-\d{2}$/.test(t.resumeFrom) ? t.resumeFrom : null, endDate: /^\d{4}-\d{2}-\d{2}$/.test(t.endDate) ? t.endDate : null
   })).filter(t => t.amount > 0) : [];
+  const cleanCategoryList = (list, fallback) => {
+    const seen = new Set(); const out = [];
+    (Array.isArray(list) ? list : []).forEach(c => { const name = String(c?.name || "").trim().slice(0, 40); if (!name || seen.has(name.toLowerCase())) return; seen.add(name.toLowerCase()); out.push({ name, color: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : "#b7c4bd", icon: typeof pennywiseIconPaths !== "undefined" && pennywiseIconPaths[c.icon] ? c.icon : "overview" }); });
+    return out.length ? out : JSON.parse(JSON.stringify(fallback));
+  };
+  const categories = { expense: cleanCategoryList(source.categories?.expense, defaultCategories.expense), income: cleanCategoryList(source.categories?.income, defaultCategories.income) };
+  ["expense", "income"].forEach(kind => { if (!categories[kind].some(c => c.name === "Other")) categories[kind].push({ name: "Other", color: "#b7c4bd", icon: "overview" }); });
+  const ensureCategory = (kind, name) => { if (!categories[kind].some(c => c.name === name)) categories[kind].push({ name, color: categoryPalette[categories[kind].length % categoryPalette.length], icon: "overview" }); };
+  cleanTransactions.forEach(t => ensureCategory(t.type, t.category));
   return {
     ...seed, ...source, transactions: cleanTransactions,
     transfers: Array.isArray(source.transfers) ? source.transfers.map((t, i) => ({ id: t.id ?? `transfer-legacy-${i}`, amount: number(t.amount), date: t.date || dateKey(today), destination: String(t.destination || ""), automatic: Boolean(t.automatic) })).filter(t => t.amount !== 0) : [],
     goals: Array.isArray(source.goals) ? source.goals.map((g, i) => ({ id: g.id ?? `goal-legacy-${i}`, name: String(g.name || "Goal").slice(0, 80), target: Math.max(1, number(g.target)), saved: Math.max(0, number(g.saved)), deadline: g.deadline || dateKey(today), created: g.created || dateKey(today) })) : [],
     pots: Array.isArray(source.pots) ? source.pots.map((p, i) => ({ id: p.id ?? `pot-legacy-${i}`, name: String(p.name || "Savings pot").slice(0, 80), target: Math.max(1, number(p.target)), saved: Math.max(0, number(p.saved)), color: ["teal", "coral", "purple", "yellow"].includes(p.color) ? p.color : "teal" })) : [],
-    budgets: Array.isArray(source.budgets) ? source.budgets.map(b => ({ category: String(b.category || "Other"), amount: number(b.amount) })).filter(b => expenseCategories.includes(b.category) && b.amount > 0) : [],
+    budgets: Array.isArray(source.budgets) ? source.budgets.map(b => ({ category: String(b.category || "Other"), amount: number(b.amount) })).filter(b => b.amount > 0).map(b => { ensureCategory("expense", b.category); return b; }) : [],
+    categories, monthlyLimit: Math.max(0, number(source.monthlyLimit)), onboarded: Boolean(source.onboarded),
     rule: { amount: Math.max(1, number(source.rule?.amount) || 20), type: ["fixed", "off"].includes(source.rule?.type) ? source.rule.type : "percent" },
-    settings: { ...seed.settings, ...(source.settings || {}), currency: ["MAD", "EUR", "USD", "GBP"].includes(source.settings?.currency) ? source.settings.currency : "MAD", lastBackup: source.settings?.lastBackup || null }
+    settings: { ...seed.settings, ...(source.settings || {}), language: ["en", "fr", "ar"].includes(source.settings?.language) ? source.settings.language : "en", currency: ["MAD", "EUR", "USD", "GBP"].includes(source.settings?.currency) ? source.settings.currency : "MAD", lastBackup: source.settings?.lastBackup || null }
   };
 }
 
@@ -232,26 +272,26 @@ const previousMonthTransactions = () => { const date = new Date(viewDate.getFull
 const percentChange = (current, previous) => previous ? Math.round((current - previous) / previous * 100) : (current ? 100 : 0);
 
 function recurringOccurrence(source, date) { return `${source.id}:${source.frequency}:${date}`; }
+function recurringDate(source, n) {
+  const sourceDate = dateAtNoon(source.date);
+  if (source.frequency === "Monthly") {
+    const target = new Date(sourceDate.getFullYear(), sourceDate.getMonth() + n, 1, 12);
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(sourceDate.getDate(), lastDay)); return target;
+  }
+  const cursor = new Date(sourceDate); cursor.setDate(cursor.getDate() + (source.frequency === "Weekly" ? 7 : 1) * n); return cursor;
+}
 function expandRecurringTransactions() {
-  const originals = data.transactions.filter(t => !t.generated && t.frequency !== "One-time");
+  const originals = data.transactions.filter(t => !t.generated && t.frequency !== "One-time" && !t.paused);
   let changed = false;
   originals.forEach(source => {
-    const sourceDate = dateAtNoon(source.date);
-    const step = source.frequency === "Weekly" ? 7 : 1;
-    for (let n = 1; ; n += 1) {
-      let cursor;
-      if (source.frequency === "Monthly") {
-        const target = new Date(sourceDate.getFullYear(), sourceDate.getMonth() + n, 1, 12);
-        const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-        target.setDate(Math.min(sourceDate.getDate(), lastDay));
-        cursor = target;
-      } else {
-        cursor = new Date(sourceDate); cursor.setDate(cursor.getDate() + step * n);
-      }
-      if (cursor > today) break;
-      const occurrence = recurringOccurrence(source, dateKey(cursor));
+    for (let n = 1; n < 2000; n += 1) {
+      const cursor = recurringDate(source, n); const key = dateKey(cursor);
+      if (cursor > today || (source.endDate && key > source.endDate)) break;
+      if (source.resumeFrom && key < source.resumeFrom) continue;
+      const occurrence = recurringOccurrence(source, key);
       if (!data.transactions.some(t => t.occurrence === occurrence)) {
-        const created = { ...source, id: `${source.id}-${dateKey(cursor)}`, generated: true, sourceId: source.id, occurrence, date: dateKey(cursor) };
+        const created = { ...source, id: `${source.id}-${key}`, generated: true, sourceId: source.id, occurrence, date: key, paused: false, endDate: null, resumeFrom: null };
         data.transactions.push(created);
         if (created.type === "income") applySavingsRule(created);
         changed = true;
@@ -260,7 +300,6 @@ function expandRecurringTransactions() {
   });
   if (changed) save();
 }
-
 function ensureEmergencyPot() {
   let pot = data.pots.find(item => item.name.toLowerCase().includes("emergency"));
   if (!pot) {
@@ -297,6 +336,7 @@ function emergencyRecommendation() {
 }
 
 function render() {
+  syncCategories();
   const current = totals(data.transactions.filter(thisMonth));
   const previous = totals(previousMonthTransactions());
   const displayName = data.settings.name || "Your profile";
@@ -309,13 +349,14 @@ function render() {
   $("#expenseTotal").textContent = money(current.expense);
   const rate = current.income ? Math.round((current.income - current.expense) / current.income * 100) : 0;
   $("#savingsRate").textContent = `${rate}%`; $("#ringValue").textContent = `${rate}%`;
-  $("#ruleMeta").innerHTML = data.rule.type === "off" ? "Auto-saving is <strong>off</strong>" : `Your rule: <strong>${data.rule.type === "percent" ? data.rule.amount + "%" : h(money(data.rule.amount))}</strong> ${data.rule.type === "percent" ? "of income" : "per income"}`;
+  $("#ruleMeta").innerHTML = data.rule.type === "off" ? h(tr("Auto-saving is off")) : tr(data.rule.type === "percent" ? "Your rule: {r} of income" : "Your rule: {r} per income", { r: `<strong>${data.rule.type === "percent" ? data.rule.amount + "%" : h(money(data.rule.amount))}</strong>` });
   $("#incomeMeta").innerHTML = previous.income ? `${percentChange(current.income, previous.income) >= 0 ? "↑" : "↓"} ${Math.abs(percentChange(current.income, previous.income))}% <span>vs last month</span>` : "<span>No data last month</span>";
   $("#expenseMeta").innerHTML = previous.expense ? `${percentChange(current.expense, previous.expense) >= 0 ? "↑" : "↓"} ${Math.abs(percentChange(current.expense, previous.expense))}% <span>vs last month</span>` : "<span>No data last month</span>";
   const barMax = Math.max(1, current.income, current.expense); $("#incomeBar").style.width = `${current.income / barMax * 100}%`; $("#expenseBar").style.width = `${current.expense / barMax * 100}%`;
-  renderBalanceTrend(); const hour = new Date().getHours(); const greeting = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"; $("#greeting").textContent = data.settings.name ? `${greeting}, ${data.settings.name.split(/\s+/)[0]}` : greeting; renderBackupNotice(); renderMonthNav(); renderBudgetAlerts();
-  $(".progress-ring").style.background = `conic-gradient(var(--teal) ${Math.max(0, Math.min(100, rate))}%, #22343a 0)`;
+  renderBalanceTrend(); const hour = new Date().getHours(); const greeting = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"; $("#greeting").textContent = data.settings.name ? tr("{g}, {n}", { g: tr(greeting), n: data.settings.name.split(/\s+/)[0] }) : tr(greeting); renderBackupNotice(); renderMonthNav(); renderBudgetAlerts();
+  $(".progress-ring").style.background = `conic-gradient(var(--teal) ${Math.max(0, Math.min(100, rate))}%, var(--track) 0)`;
   renderChart(); renderCategories(); renderTransactions(); renderGoals(); renderPots(); renderReports(); renderFormOptions();
+  if (typeof renderExtras === "function") renderExtras();
 }
 
 function renderBalanceTrend() {
@@ -328,18 +369,18 @@ function renderBalanceTrend() {
   const meta = $("#balanceMeta"); meta.className = `stat-meta ${up ? "positive" : "negative"}`; meta.innerHTML = last ? `${up ? "↑" : "↓"} ${Math.abs(change)}% <span>vs last month</span>` : "<span>No data last month</span>";
 }
 function renderMonthNav() {
-  $("#monthLabel").textContent = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  $("#monthLabel").textContent = viewDate.toLocaleDateString(locale(), { month: "long", year: "numeric" });
   $("#monthNext").disabled = isCurrentMonth();
   $("#snapshotText").textContent = isCurrentMonth() ? "Here’s your financial snapshot for this month." : "You’re looking at a past month. Balance cards show that month’s activity.";
 }
 function renderBudgetAlerts() {
   const spent = {}; data.transactions.filter(t => t.type === "expense" && thisMonth(t)).forEach(t => { spent[t.category] = (spent[t.category] || 0) + t.amount; });
   const alerts = data.budgets.map(b => ({ b, used: spent[b.category] || 0 })).filter(x => x.used >= x.b.amount * 0.8).sort((a, b) => b.used / b.b.amount - a.used / a.b.amount);
-  $("#budgetAlerts").innerHTML = alerts.map(({ b, used }) => { const over = used >= b.amount; return `<div class="budget-alert ${over ? "over" : ""}"><strong>${h(b.category)}</strong> ${over ? `is ${h(money(used - b.amount))} over budget` : `has used ${Math.round(used / b.amount * 100)}% of its budget`} <span>${h(money(used))} / ${h(money(b.amount))}</span></div>`; }).join("");
+  $("#budgetAlerts").innerHTML = alerts.map(({ b, used }) => { const over = used >= b.amount; return `<div class="budget-alert ${over ? "over" : ""}"><span><strong>${h(b.category)}</strong> ${h(over ? tr("is {m} over budget", { m: money(used - b.amount) }) : tr("has used {p}% of its budget", { p: Math.round(used / b.amount * 100) }))}</span> <span>${h(money(used))} / ${h(money(b.amount))}</span></div>`; }).join("");
 }
 function renderBackupNotice() {
   const node = $(".storage-warning"); const last = data.settings.lastBackup; const days = last ? Math.floor((Date.now() - new Date(last)) / 86400000) : null;
-  node.textContent = !last ? "Your data lives only in this browser. Export a full backup (Settings) so you can't lose it." : days > 30 ? `Last backup was ${days} days ago. Export a fresh backup from Settings.` : `Last backup: ${days === 0 ? "today" : days + " day" + (days === 1 ? "" : "s") + " ago"}.`;
+  node.textContent = !last ? tr("Your data lives only in this browser. Export a full backup (Settings) so you can't lose it.") : days > 30 ? tr("Last backup was {n} days ago. Export a fresh backup from Settings.", { n: days }) : tr("Last backup: {w}.", { w: days === 0 ? tr("today") : tr(days === 1 ? "{n} day ago" : "{n} days ago", { n: days }) });
   node.classList.toggle("stale", !last || days > 30);
 }
 function renderChart() {
@@ -347,26 +388,37 @@ function renderChart() {
   periodTransactions(period).forEach(t => { const index = Math.floor((dateAtNoon(t.date) - start) / 86400000); if (index >= 0 && index < days) (t.type === "income" ? income : expense)[index] += t.amount; });
   const max = Math.max(1, ...income, ...expense); const points = values => values.map((value, index) => `${index / Math.max(1, days - 1) * 680 + 10},${215 - value / max * 185}`).join(" ");
   svg.innerHTML = `<line x1="10" y1="215" x2="690" y2="215" stroke="#e9ede8"/><line x1="10" y1="155" x2="690" y2="155" stroke="#eef1ec"/><line x1="10" y1="95" x2="690" y2="95" stroke="#eef1ec"/><line x1="10" y1="35" x2="690" y2="35" stroke="#eef1ec"/><polyline points="${points(income)}" fill="none" stroke="#167d72" stroke-width="3" stroke-linecap="round"/><polyline points="${points(expense)}" fill="none" stroke="#ee785e" stroke-width="3" stroke-linecap="round"/>`;
-  $$(".chart-labels span").forEach((label, index) => { const date = new Date(start.getTime() + Math.round(index * (days - 1) / 6) * 86400000); label.textContent = date.toLocaleDateString("en-US", { month: "short", day: "numeric" }); });
+  $$(".chart-labels span").forEach((label, index) => { const date = new Date(start.getTime() + Math.round(index * (days - 1) / 6) * 86400000); label.textContent = date.toLocaleDateString(locale(), { month: "short", day: "numeric" }); });
 }
 function renderCategories() {
   const expenses = data.transactions.filter(t => t.type === "expense" && thisMonth(t)); const map = {}; expenses.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
   const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]); const total = sorted.reduce((sum, [, value]) => sum + value, 0);
   $("#donutTotal").textContent = money(total).replace(".00", ""); $("#categoryList").innerHTML = sorted.slice(0, 5).map(([category, value]) => `<div class="category-row"><i style="background:${categoryColors[category] || "#b7c4bd"}"></i><span class="category-icon">${iconMarkup(icons[category] || "overview")}</span><span>${h(category)}</span><strong>${money(value)}</strong></div>`).join("") || '<p class="muted">No spending yet.</p>';
-  if (!total) $("#donutChart").style.background = "#22302f"; if (total) { let cursor = 0; $("#donutChart").style.background = `conic-gradient(${sorted.map(([category, value]) => { const start = cursor; cursor += value / total * 100; return `${categoryColors[category] || "#b7c4bd"} ${start}% ${cursor}%`; }).join(",")})`; }
+  if (!total) $("#donutChart").style.background = "var(--track)"; if (total) { let cursor = 0; $("#donutChart").style.background = `conic-gradient(${sorted.map(([category, value]) => { const start = cursor; cursor += value / total * 100; return `${categoryColors[category] || "#b7c4bd"} ${start}% ${cursor}%`; }).join(",")})`; }
 }
 function transactionMarkup(t, table = false) {
   const actions = `<span class="row-actions"><button class="text-btn edit-transaction" data-id="${h(t.id)}">Edit</button><button class="text-btn delete-transaction" data-id="${h(t.id)}">Delete</button></span>`;
-  const note = h(t.notes || t.payment); const label = h(t.category); const amount = `${t.type === "income" ? "+" : "−"}${money(t.amount)}`;
-  const categoryIcon = iconMarkup(icons[t.category] || "overview");
-  return table ? `<div class="table-row"><div><strong class="table-category-icon">${categoryIcon}${label}</strong><small>${note}</small></div><span>${dateAtNoon(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span class="badge">${h(t.frequency)}</span><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>` : `<div class="transaction-item"><div class="transaction-icon ${t.type}">${categoryIcon}</div><div class="transaction-info"><strong>${label}</strong><small>${note} · ${dateAtNoon(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</small></div><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`;
+  const tagHtml = (t.tags || []).map(tag => `<span class="tag">#${h(tag)}</span>`).join("");
+  const note = h(t.notes || tr(t.payment)); const label = h(t.category); const amount = `<bdi dir="ltr">${h((t.type === "income" ? "+" : "−") + money(t.amount))}</bdi>`;
+  const categoryIcon = iconMarkup(icons[t.category] || "overview"); const dateText = dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" });
+  const badges = `${t.splitId ? '<span class="badge">Split</span>' : ""}${t.generated ? '<span class="badge">Auto</span>' : ""}`;
+  return table ? `<div class="table-row"><div><strong class="table-category-icon">${categoryIcon}${label}</strong><small>${note}${tagHtml}</small></div><span>${dateText}</span><span class="badge-group"><span class="badge">${h(t.frequency)}</span>${badges}</span><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`
+    : `<div class="transaction-item"><div class="transaction-icon ${t.type}">${categoryIcon}</div><div class="transaction-info"><strong>${label}</strong><small>${note} · ${dateText}${tagHtml}</small></div><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`;
 }
 function renderTransactions() {
+  const fill = (selector, items) => { const el = $(selector); if (!el) return; const old = el.value; el.innerHTML = `<option value="">${selector === "#filterTag" ? "All tags" : "All categories"}</option>` + items.map(x => `<option value="${h(x)}">${h(x)}</option>`).join(""); el.value = items.includes(old) ? old : ""; };
+  fill("#filterCategory", [...new Set([...expenseCategories, ...incomeCategories])].sort((a, b) => a.localeCompare(b)));
+  fill("#filterTag", [...new Set(data.transactions.flatMap(t => t.tags || []))].sort((a, b) => a.localeCompare(b)));
   const sort = $("#transactionSort")?.value || "newest"; const sorters = { newest: (a, b) => b.date.localeCompare(a.date), oldest: (a, b) => a.date.localeCompare(b.date), largest: (a, b) => b.amount - a.amount, smallest: (a, b) => a.amount - b.amount };
-  let list = [...data.transactions].sort(sorters[sort] || sorters.newest); const search = ($("#transactionSearch")?.value || "").toLowerCase();
-  list = list.filter(t => (currentFilter === "all" || t.type === currentFilter) && `${t.category} ${t.notes}`.toLowerCase().includes(search));
-  $("#recentTransactions").innerHTML = list.slice(0, 5).map(t => transactionMarkup(t)).join("") || '<p class="muted">No transactions match.</p>';
-  $("#transactionTable").innerHTML = list.slice(0, transactionLimit).map(t => transactionMarkup(t, true)).join("") || '<p class="muted">No transactions match.</p>'; $("#showMoreTransactions").hidden = list.length <= transactionLimit; $("#showMoreTransactions").textContent = `Show more (${list.length - transactionLimit} remaining)`; $("#transactionCount").textContent = `${list.length} transaction${list.length === 1 ? "" : "s"}`;
+  const search = ($("#transactionSearch")?.value || "").toLowerCase().trim(); const from = $("#filterFrom")?.value || "", to = $("#filterTo")?.value || ""; const cat = $("#filterCategory")?.value || "", tag = $("#filterTag")?.value || "";
+  const all = [...data.transactions].sort(sorters[sort] || sorters.newest);
+  const list = all.filter(t => (currentFilter === "all" || t.type === currentFilter) && `${t.category} ${tr(t.category)} ${t.notes} ${(t.tags || []).join(" ")}`.toLowerCase().includes(search) && (!from || t.date >= from) && (!to || t.date <= to) && (!cat || t.category === cat) && (!tag || (t.tags || []).includes(tag)));
+  const recent = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  $("#recentTransactions").innerHTML = recent.map(t => transactionMarkup(t)).join("") || '<p class="muted">No transactions yet.</p>';
+  $("#transactionTable").innerHTML = list.slice(0, transactionLimit).map(t => transactionMarkup(t, true)).join("") || '<p class="muted">No transactions match.</p>';
+  $("#showMoreTransactions").hidden = list.length <= transactionLimit; $("#showMoreTransactions").textContent = tr("Show more ({n} remaining)", { n: list.length - transactionLimit });
+  $("#transactionCount").textContent = tr(list.length === 1 ? "{n} transaction" : "{n} transactions", { n: list.length });
+  if ($("#clearFilters")) $("#clearFilters").hidden = !(from || to || cat || tag || search);
 }
 function goalStatus(goal) {
   const remaining = Math.max(0, goal.target - goal.saved); const days = Math.max(0, Math.ceil((dateAtNoon(goal.deadline) - today) / 86400000)); const weekly = remaining / Math.max(1, Math.ceil(days / 7));
@@ -374,62 +426,86 @@ function goalStatus(goal) {
   return { remaining, days, weekly, status: remaining === 0 ? "Complete" : days === 0 ? "Past due" : goal.saved / goal.target >= elapsed * 0.9 ? "On track" : "Catch up" };
 }
 function renderGoals() {
-  const goalHtml = goal => { const pct = Math.min(100, Math.round(goal.saved / goal.target * 100)); const status = goalStatus(goal); return `<div class="goal-card"><div class="goal-symbol">${iconMarkup("goals")}</div><h2>${h(goal.name)}</h2><div class="goal-date">Target · ${dateAtNoon(goal.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div><div class="goal-amounts"><strong>${money(goal.saved)}</strong><span>of ${money(goal.target)}</span></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-foot"><span>${pct}% complete · ${status.status}</span><span class="${status.status === "Catch up" || status.status === "Past due" ? "behind" : ""}">${status.remaining ? `${money(status.weekly)}/week` : "Done"}</span></div><div class="card-actions"><button class="text-btn transfer-btn" data-destination="goal:${h(goal.id)}">${iconMarkup("plus")} Move money</button><button class="text-btn delete-goal" data-id="${h(goal.id)}">Delete</button></div></div>`; };
+  const goalHtml = goal => { const pct = Math.min(100, Math.round(goal.saved / goal.target * 100)); const status = goalStatus(goal); return `<div class="goal-card"><div class="goal-symbol">${iconMarkup("goals")}</div><h2>${h(goal.name)}</h2><div class="goal-date">${h(tr("Target · {d}", { d: dateAtNoon(goal.deadline).toLocaleDateString(locale(), { month: "long", day: "numeric", year: "numeric" }) }))}</div><div class="goal-amounts"><strong>${money(goal.saved)}</strong><span>${h(tr("of {m}", { m: money(goal.target) }))}</span></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-foot"><span>${h(tr("{p}% complete · {s}", { p: pct, s: tr(status.status) }))}</span><span class="${status.status === "Catch up" || status.status === "Past due" ? "behind" : ""}">${status.remaining ? h(tr("{m}/week", { m: money(status.weekly) })) : h(tr("Done"))}</span></div><div class="card-actions"><button class="text-btn transfer-btn" data-destination="goal:${h(goal.id)}">${iconMarkup("plus")} Move money</button><button class="text-btn delete-goal" data-id="${h(goal.id)}">Delete</button></div></div>`; };
   $("#goalsGrid").innerHTML = data.goals.map(goalHtml).join("") || '<p class="muted">No goals yet. Add one to give your savings a direction.</p>';
-  $("#goalsPreview").innerHTML = data.goals.slice(0, 2).map(goal => `<div class="goal-row"><div class="goal-row-head"><strong>${h(goal.name)}</strong><span>${Math.min(100, Math.round(goal.saved / goal.target * 100))}% · ${goalStatus(goal).status}</span></div><div class="progress"><span style="width:${Math.min(100, goal.saved / goal.target * 100)}%"></span></div></div>`).join("") || '<p class="muted">No goals yet.</p>';
+  $("#goalsPreview").innerHTML = data.goals.slice(0, 2).map(goal => `<div class="goal-row"><div class="goal-row-head"><strong>${h(goal.name)}</strong><span>${Math.min(100, Math.round(goal.saved / goal.target * 100))}% · ${h(tr(goalStatus(goal).status))}</span></div><div class="progress"><span style="width:${Math.min(100, goal.saved / goal.target * 100)}%"></span></div></div>`).join("") || '<p class="muted">No goals yet.</p>';
 }
 function renderPots() {
   const saved = data.pots.reduce((sum, pot) => sum + pot.saved, 0); const target = data.pots.reduce((sum, pot) => sum + pot.target, 0); const emergency = data.pots.find(pot => pot.name.toLowerCase().includes("emergency")); const recommendation = emergencyRecommendation();
   $("#savedTotal").textContent = money(saved); $("#savingsRing span").textContent = `${target ? Math.min(100, Math.round(saved / target * 100)) : 0}%`;
-  $("#emergencyProgress").textContent = emergency ? `${money(emergency.saved)} / ${money(emergency.target || recommendation)}` : `Recommended: ${money(recommendation)}`;
-  $("#potsGrid").innerHTML = data.pots.map(pot => { const pct = Math.min(100, Math.round(pot.saved / pot.target * 100)); const color = pot.color === "coral" ? "var(--coral)" : pot.color === "purple" ? "var(--purple)" : pot.color === "yellow" ? "var(--yellow)" : "var(--teal)"; return `<div class="pot-card"><div class="pot-head"><span class="pot-icon ${h(pot.color)}">◎</span><span class="muted">${pct}%</span></div><h3>${h(pot.name)}</h3><div class="pot-amount">${money(pot.saved)} <span>of ${money(pot.target)}</span></div><div class="progress"><span style="width:${pct}%;background:${color}"></span></div><div class="pot-footer"><span>Progress</span><strong>${money(Math.max(0, pot.target - pot.saved))} to go</strong></div><div class="pot-actions"><button class="text-btn transfer-btn" data-destination="pot:${h(pot.id)}">＋ Move money</button><button class="text-btn delete-pot" data-id="${h(pot.id)}">Delete</button></div></div>`; }).join("") || '<p class="muted">No savings pots yet. Create your first one above.</p>';
+  $("#emergencyProgress").textContent = emergency ? `${money(emergency.saved)} / ${money(emergency.target || recommendation)}` : tr("Recommended: {m}", { m: money(recommendation) });
+  $("#potsGrid").innerHTML = data.pots.map(pot => { const pct = Math.min(100, Math.round(pot.saved / pot.target * 100)); const color = pot.color === "coral" ? "var(--coral)" : pot.color === "purple" ? "var(--purple)" : pot.color === "yellow" ? "var(--yellow)" : "var(--teal)"; return `<div class="pot-card"><div class="pot-head"><span class="pot-icon ${h(pot.color)}">◎</span><span class="muted">${pct}%</span></div><h3>${h(pot.name)}</h3><div class="pot-amount">${money(pot.saved)} <span>${h(tr("of {m}", { m: money(pot.target) }))}</span></div><div class="progress"><span style="width:${pct}%;background:${color}"></span></div><div class="pot-footer"><span>Progress</span><strong>${h(tr("{m} to go", { m: money(Math.max(0, pot.target - pot.saved)) }))}</strong></div><div class="pot-actions"><button class="text-btn transfer-btn" data-destination="pot:${h(pot.id)}">＋ Move money</button><button class="text-btn delete-pot" data-id="${h(pot.id)}">Delete</button></div></div>`; }).join("") || '<p class="muted">No savings pots yet. Create your first one above.</p>';
   const spent = {}; data.transactions.filter(t => t.type === "expense" && thisMonth(t)).forEach(t => { spent[t.category] = (spent[t.category] || 0) + t.amount; });
-  $("#budgetGrid").innerHTML = data.budgets.map(budget => { const used = spent[budget.category] || 0; const pct = Math.round(used / budget.amount * 100); return `<div class="budget-card"><div class="goal-row-head"><strong>${h(budget.category)}</strong><span>${money(used)} / ${money(budget.amount)}</span></div><div class="progress"><span style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? "var(--coral)" : "var(--teal)"}"></span></div><small class="muted">${pct}% used${pct >= 80 ? " · " + (pct >= 100 ? "Over budget" : "Warning: near limit") : ""}</small> <button class="text-btn delete-budget" data-category="${h(budget.category)}">Delete</button></div>`; }).join("") || '<p class="muted">No budgets set yet.</p>';
-  const food = spent.Food || 0; $("#savingAdvice").textContent = recommendation ? `A 3-month emergency fund would be about ${money(recommendation)}.` : "Your emergency recommendation will appear after you record expenses.";
-  $("#savingAdviceBody").textContent = food ? `Food is ${money(food)} this month. Review your largest categories weekly and redirect the savings to your emergency fund.` : "Add expenses to get a recommendation based on your real spending.";
+  $("#budgetGrid").innerHTML = data.budgets.map(budget => { const used = spent[budget.category] || 0; const pct = Math.round(used / budget.amount * 100); return `<div class="budget-card"><div class="goal-row-head"><strong>${h(budget.category)}</strong><span>${money(used)} / ${money(budget.amount)}</span></div><div class="progress"><span style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? "var(--coral)" : "var(--teal)"}"></span></div><small class="muted">${h(tr("{p}% used", { p: pct }))}${pct >= 80 ? " · " + h(tr(pct >= 100 ? "Over budget" : "Warning: near limit")) : ""}</small> <button class="text-btn delete-budget" data-category="${h(budget.category)}">Delete</button></div>`; }).join("") || '<p class="muted">No budgets set yet.</p>';
+  const food = spent.Food || 0; $("#savingAdvice").textContent = recommendation ? tr("A 3-month emergency fund would be about {m}.", { m: money(recommendation) }) : "Your emergency recommendation will appear after you record expenses.";
+  $("#savingAdviceBody").textContent = food ? tr("Food is {m} this month. Review your largest categories weekly and redirect the savings to your emergency fund.", { m: money(food) }) : "Add expenses to get a recommendation based on your real spending.";
 }
 
-function renderFormOptions() { const select = $("#category"); if (select) select.innerHTML = (currentType === "income" ? incomeCategories : expenseCategories).map(category => `<option>${h(category)}</option>`).join(""); }
+function renderFormOptions() { const select = $("#category"); if (select) { const old = select.value; select.innerHTML = (currentType === "income" ? incomeCategories : expenseCategories).map(category => `<option value="${h(category)}">${h(category)}</option>`).join(""); if (old && [...select.options].some(o => o.value === old)) select.value = old; } }
 function openModal(selector) { $(selector).classList.add("open"); }
 function closeModals() { $$(".modal-backdrop").forEach(modal => modal.classList.remove("open")); }
-function setTransactionType(type) { currentType = type; $$(".type-toggle button").forEach(item => item.classList.toggle("active", item.dataset.type === type)); renderFormOptions(); }
-function startTransaction() { editingTransactionId = null; $("#transactionForm").reset(); setTransactionType("expense"); $("#transactionForm button[type=submit]").textContent = "Add transaction"; $("#date").value = dateKey(today); openModal("#transactionModal"); $("#amount").focus(); }
+function setTransactionType(type) { currentType = type; if (typeof updateSplitAvailability === "function") setTimeout(updateSplitAvailability, 0); $$("#transactionModal .type-toggle button").forEach(item => item.classList.toggle("active", item.dataset.type === type)); renderFormOptions(); }
+function startTransaction() { editingTransactionId = null; $("#transactionForm").reset(); if (typeof resetSplit === "function") resetSplit(); setTransactionType("expense"); $("#transactionForm button[type=submit]").textContent = "Add transaction"; $("#date").value = dateKey(today); openModal("#transactionModal"); $("#amount").focus(); }
 
 $$(".nav-item").forEach(button => button.addEventListener("click", () => { $$(".nav-item").forEach(item => item.classList.remove("active")); button.classList.add("active"); $$(".view").forEach(view => view.classList.remove("active")); $(`#${button.dataset.view}View`).classList.add("active"); $(".sidebar")?.classList.remove("mobile-menu-open"); $("#mobileMenuBtn")?.setAttribute("aria-expanded", "false"); }));
 $$("[data-view-target]").forEach(button => button.addEventListener("click", () => $(`[data-view="${button.dataset.viewTarget}"]`).click()));
 $("#addTransactionBtn").onclick = startTransaction; $("#addTransactionBtn2").onclick = startTransaction; $("#addGoalBtn").onclick = () => openModal("#goalModal"); $("#addPotBtn").onclick = () => openModal("#potModal"); $("#editRuleBtn").onclick = () => { $("#ruleAmount").value = data.rule.amount; $("#ruleType").value = data.rule.type; openModal("#ruleModal"); };
-const openProfile = () => { $("#profileName").value = data.settings.name; $("#profileDisplayName").textContent = data.settings.name || "Your profile"; $("#currencySelect").value = data.settings.currency; const last = data.settings.lastBackup; $("#backupStatus").textContent = last ? `Last backup: ${new Date(last).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.` : "No backup yet. Export one so you can restore your data later."; openModal("#settingsModal"); };
+const openProfile = () => { $("#profileName").value = data.settings.name; $("#profileDisplayName").textContent = data.settings.name || "Your profile"; $("#currencySelect").value = data.settings.currency; const last = data.settings.lastBackup; $("#backupStatus").textContent = last ? tr("Last backup: {w}.", { w: new Date(last).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" }) }) : tr("No backup yet. Export one so you can restore your data later."); $("#languageSelect").value = lang(); $("#themeSelect").value = currentTheme(); openModal("#settingsModal"); };
 $("#settingsBtn").onclick = openProfile; $(".avatar").onclick = openProfile; $$("[data-close]").forEach(button => button.onclick = closeModals); $$(".modal-backdrop").forEach(modal => modal.addEventListener("click", event => { if (event.target === modal) closeModals(); }));
 $("#mobileMenuBtn").onclick = () => { const sidebar = $(".sidebar"); const button = $("#mobileMenuBtn"); const open = sidebar.classList.toggle("mobile-menu-open"); button.setAttribute("aria-expanded", String(open)); };
-$("#addBudgetBtn").onclick = () => { $("#budgetCategory").innerHTML = expenseCategories.map(category => `<option>${h(category)}</option>`).join(""); openModal("#budgetModal"); }; $("#cashflowPeriod").onchange = renderChart; $("#monthPrev").onclick = () => setViewMonth(-1); $("#monthNext").onclick = () => setViewMonth(1);
+$("#addBudgetBtn").onclick = () => { $("#budgetCategory").innerHTML = expenseCategories.map(category => `<option value="${h(category)}">${h(category)}</option>`).join(""); openModal("#budgetModal"); }; $("#cashflowPeriod").onchange = renderChart; $("#monthPrev").onclick = () => setViewMonth(-1); $("#monthNext").onclick = () => setViewMonth(1);
 document.addEventListener("click", event => {
-  const transfer = event.target.closest(".transfer-btn"); if (transfer) { $("#transferDestination").innerHTML = [...data.goals.map(g => `<option value="goal:${h(g.id)}">Goal: ${h(g.name)}</option>`), ...data.pots.map(p => `<option value="pot:${h(p.id)}">Savings pot: ${h(p.name)}</option>`)].join(""); $("#transferDestination").value = transfer.dataset.destination; $("#transferAmount").value = ""; $("#transferDirection").value = "add"; openModal("#transferModal"); }
-  const edit = event.target.closest(".edit-transaction"); if (edit) { const transaction = data.transactions.find(item => String(item.id) === edit.dataset.id); if (!transaction) return; editingTransactionId = transaction.id; setTransactionType(transaction.type); ["amount", "date", "category", "payment", "frequency", "notes"].forEach(id => { $(`#${id}`).value = transaction[id] || ""; }); $("#transactionForm button[type=submit]").textContent = "Save changes"; openModal("#transactionModal"); }
-  const remove = event.target.closest(".delete-transaction"); if (remove && confirm("Delete this transaction?")) { removeAutoTransfer(remove.dataset.id); data.transactions = data.transactions.filter(item => String(item.id) !== remove.dataset.id); save(); render(); toast("Transaction deleted."); }
-  const goal = event.target.closest(".delete-goal"); if (goal && confirm("Delete this goal? Money saved in it returns to your balance.")) { data.transfers = data.transfers.filter(t => t.destination !== `goal:${goal.dataset.id}`); data.goals = data.goals.filter(item => String(item.id) !== goal.dataset.id); save(); render(); toast("Goal deleted. Saved money returned to your balance."); }
-  const pot = event.target.closest(".delete-pot"); if (pot && confirm("Delete this savings pot? Money saved in it returns to your balance.")) { data.transfers = data.transfers.filter(t => t.destination !== `pot:${pot.dataset.id}`); data.pots = data.pots.filter(item => String(item.id) !== pot.dataset.id); save(); render(); toast("Pot deleted. Saved money returned to your balance."); }
-  const budget = event.target.closest(".delete-budget"); if (budget && confirm("Delete this budget?")) { data.budgets = data.budgets.filter(item => item.category !== budget.dataset.category); save(); render(); toast("Budget deleted."); }
+  const transfer = event.target.closest(".transfer-btn"); if (transfer) { $("#transferDestination").innerHTML = [...data.goals.map(g => `<option value="goal:${h(g.id)}">${h(tr("Goal: {n}", { n: g.name }))}</option>`), ...data.pots.map(p => `<option value="pot:${h(p.id)}">${h(tr("Savings pot: {n}", { n: p.name }))}</option>`)].join(""); $("#transferDestination").value = transfer.dataset.destination; $("#transferAmount").value = ""; $("#transferDirection").value = "add"; openModal("#transferModal"); }
+  const edit = event.target.closest(".edit-transaction"); if (edit) { const transaction = data.transactions.find(item => String(item.id) === edit.dataset.id); if (!transaction) return; editingTransactionId = transaction.id; setTransactionType(transaction.type); ["amount", "date", "category", "payment", "frequency", "notes"].forEach(id => { $(`#${id}`).value = transaction[id] || ""; }); $("#tags").value = (transaction.tags || []).join(", "); if (typeof setSplitVisible === "function") setSplitVisible(false); $("#transactionForm button[type=submit]").textContent = "Save changes"; openModal("#transactionModal"); }
+  const remove = event.target.closest(".delete-transaction"); if (remove) { pushUndo(); removeAutoTransfer(remove.dataset.id); data.transactions = data.transactions.filter(item => String(item.id) !== remove.dataset.id); save(); render(); toast("Transaction deleted.", "success", { undo: true }); }
+  const goal = event.target.closest(".delete-goal"); if (goal) { pushUndo(); data.transfers = data.transfers.filter(t => t.destination !== `goal:${goal.dataset.id}`); data.goals = data.goals.filter(item => String(item.id) !== goal.dataset.id); save(); render(); toast("Goal deleted. Saved money returned to your balance.", "success", { undo: true }); }
+  const pot = event.target.closest(".delete-pot"); if (pot) { pushUndo(); data.transfers = data.transfers.filter(t => t.destination !== `pot:${pot.dataset.id}`); data.pots = data.pots.filter(item => String(item.id) !== pot.dataset.id); save(); render(); toast("Pot deleted. Saved money returned to your balance.", "success", { undo: true }); }
+  const budget = event.target.closest(".delete-budget"); if (budget) { pushUndo(); data.budgets = data.budgets.filter(item => item.category !== budget.dataset.category); save(); render(); toast("Budget deleted.", "success", { undo: true }); }
 });
-$$(".type-toggle button").forEach(button => button.onclick = () => setTransactionType(button.dataset.type));
-$("#transactionForm").onsubmit = event => { event.preventDefault(); const amount = number($("#amount").value); const date = $("#date").value; if (!(amount > 0) || !date || dateAtNoon(date).toString() === "Invalid Date") { toast("Enter a valid amount and date."); return; } const record = { id: editingTransactionId || `tx-${Date.now()}`, type: currentType, amount, date, category: $("#category").value, payment: $("#payment").value, frequency: $("#frequency").value, notes: $("#notes").value.trim().slice(0, 240), generated: false, sourceId: null, occurrence: null };
-  if (editingTransactionId) { const index = data.transactions.findIndex(item => item.id === editingTransactionId); if (index >= 0) { const old = data.transactions[index]; data.transactions[index] = { ...old, ...record, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : record.frequency }; removeAutoTransfer(old.id); if (record.type === "income") applySavingsRule(data.transactions[index]); } toast("Transaction updated."); } else { data.transactions.push(record); if (record.type === "income") applySavingsRule(record); toast(record.type === "income" && data.rule.type !== "off" ? "Income added — savings rule applied." : "Transaction added."); } save(); render(); closeModals(); event.target.reset(); editingTransactionId = null; };
-$("#goalForm").onsubmit = event => { event.preventDefault(); const target = number($("#goalTarget").value); if (!(target > 0) || !$("#goalDeadline").value) return toast("Enter a valid target and deadline."); data.goals.push({ id: `goal-${Date.now()}`, name: $("#goalName").value.trim().slice(0, 80), target, saved: 0, deadline: $("#goalDeadline").value, created: dateKey(today) }); save(); render(); closeModals(); event.target.reset(); toast("Goal created. You’ve got this!"); };
-$("#potForm").onsubmit = event => { event.preventDefault(); const target = number($("#potTarget").value); if (!(target > 0) || !$("#potName").value.trim()) return toast("Enter a valid pot name and target."); data.pots.push({ id: `pot-${Date.now()}`, name: $("#potName").value.trim().slice(0, 80), target, saved: 0, color: $("#potColor").value }); save(); render(); closeModals(); event.target.reset(); toast("Savings pot created."); };
-$("#budgetForm").onsubmit = event => { event.preventDefault(); const category = $("#budgetCategory").value; const amount = number($("#budgetAmount").value); if (!(amount > 0)) return toast("Enter a valid budget."); const existing = data.budgets.find(item => item.category === category); if (existing) existing.amount = amount; else data.budgets.push({ category, amount }); save(); render(); closeModals(); event.target.reset(); toast("Budget saved."); };
-$("#transferForm").onsubmit = event => { event.preventDefault(); const withdraw = $("#transferDirection").value === "withdraw"; const amount = number($("#transferAmount").value); const destination = $("#transferDestination").value; const [type, id] = destination.split(":"); const collection = type === "goal" ? data.goals : data.pots; const item = collection.find(value => String(value.id) === id); if (!item) return toast("Choose a savings destination."); if (!(amount > 0)) return toast("Enter a valid amount."); if (withdraw && amount > item.saved) return toast("You can't withdraw more than is saved there."); if (!withdraw && amount > allBalance()) return toast("Transfer amount exceeds your available balance."); item.saved += withdraw ? -amount : amount; data.transfers.push({ id: `transfer-${Date.now()}`, amount: withdraw ? -amount : amount, date: dateKey(today), destination }); save(); render(); closeModals(); event.target.reset(); toast(withdraw ? "Money moved back to your balance." : "Money transferred to savings."); };
+$$("#transactionModal .type-toggle button").forEach(button => button.onclick = () => setTransactionType(button.dataset.type));
+$("#transactionForm").onsubmit = event => {
+  event.preventDefault();
+  const amount = number($("#amount").value); const date = $("#date").value;
+  if (!(amount > 0) || !date || dateAtNoon(date).toString() === "Invalid Date") { toast("Enter a valid amount and date."); return; }
+  const base = { type: currentType, date, payment: $("#payment").value, frequency: $("#frequency").value, notes: $("#notes").value.trim().slice(0, 240), tags: $("#tags").value.split(/[,،#]/).map(x => x.trim().slice(0, 30)).filter(Boolean).slice(0, 8), generated: false, sourceId: null, occurrence: null };
+  const mainCategory = $("#category").value;
+  if (editingTransactionId) {
+    pushUndo(); const index = data.transactions.findIndex(item => item.id === editingTransactionId);
+    if (index >= 0) { const old = data.transactions[index]; data.transactions[index] = { ...old, ...base, id: old.id, amount, category: mainCategory, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : base.frequency }; removeAutoTransfer(old.id); if (base.type === "income") applySavingsRule(data.transactions[index]); }
+    toast("Transaction updated.", "success", { undo: true });
+  } else {
+    const splits = typeof readSplitRows === "function" && currentType === "expense" ? readSplitRows() : [];
+    const splitTotal = splits.reduce((sum, part) => sum + part.amount, 0);
+    if (splits.length && splitTotal >= amount - 0.004) { toast("Split amounts must be less than the total."); return; }
+    pushUndo(); const stamp = Date.now();
+    if (splits.length) {
+      const splitId = `split-${stamp}`;
+      [{ category: mainCategory, amount: Math.round((amount - splitTotal) * 100) / 100 }, ...splits].forEach((part, i) => data.transactions.push({ ...base, id: `tx-${stamp}-${i}`, amount: part.amount, category: part.category, splitId }));
+      toast("Split saved as separate transactions.", "success", { undo: true });
+    } else {
+      const record = { ...base, id: `tx-${stamp}`, amount, category: mainCategory }; data.transactions.push(record); if (record.type === "income") applySavingsRule(record);
+      toast(record.type === "income" && data.rule.type !== "off" ? "Income added — savings rule applied." : "Transaction added.", "success", { undo: true });
+    }
+  }
+  expandRecurringTransactions(); save(); render(); closeModals(); event.target.reset(); editingTransactionId = null;
+};
+$("#goalForm").onsubmit = event => { event.preventDefault(); const target = number($("#goalTarget").value); if (!(target > 0) || !$("#goalDeadline").value) return toast("Enter a valid target and deadline."); pushUndo(); data.goals.push({ id: `goal-${Date.now()}`, name: $("#goalName").value.trim().slice(0, 80), target, saved: 0, deadline: $("#goalDeadline").value, created: dateKey(today) }); save(); render(); closeModals(); event.target.reset(); toast("Goal created. You’ve got this!", "success", { undo: true }); };
+$("#potForm").onsubmit = event => { event.preventDefault(); const target = number($("#potTarget").value); if (!(target > 0) || !$("#potName").value.trim()) return toast("Enter a valid pot name and target."); pushUndo(); data.pots.push({ id: `pot-${Date.now()}`, name: $("#potName").value.trim().slice(0, 80), target, saved: 0, color: $("#potColor").value }); save(); render(); closeModals(); event.target.reset(); toast("Savings pot created.", "success", { undo: true }); };
+$("#budgetForm").onsubmit = event => { event.preventDefault(); const category = $("#budgetCategory").value; const amount = number($("#budgetAmount").value); if (!(amount > 0)) return toast("Enter a valid budget."); pushUndo(); const existing = data.budgets.find(item => item.category === category); if (existing) existing.amount = amount; else data.budgets.push({ category, amount }); save(); render(); closeModals(); event.target.reset(); toast("Budget saved.", "success", { undo: true }); };
+$("#transferForm").onsubmit = event => { event.preventDefault(); const withdraw = $("#transferDirection").value === "withdraw"; const amount = number($("#transferAmount").value); const destination = $("#transferDestination").value; const [type, id] = destination.split(":"); const collection = type === "goal" ? data.goals : data.pots; const item = collection.find(value => String(value.id) === id); if (!item) return toast("Choose a savings destination."); if (!(amount > 0)) return toast("Enter a valid amount."); if (withdraw && amount > item.saved) return toast("You can't withdraw more than is saved there."); if (!withdraw && amount > allBalance()) return toast("Transfer amount exceeds your available balance."); pushUndo(); item.saved += withdraw ? -amount : amount; data.transfers.push({ id: `transfer-${Date.now()}`, amount: withdraw ? -amount : amount, date: dateKey(today), destination }); save(); render(); closeModals(); event.target.reset(); toast(withdraw ? "Money moved back to your balance." : "Money transferred to savings.", "success", { undo: true }); };
 $("#ruleForm").onsubmit = event => { event.preventDefault(); const amount = number($("#ruleAmount").value); if (!(amount > 0) || ($("#ruleType").value === "percent" && amount > 100)) return toast("Enter a valid savings rule."); data.rule = { amount, type: $("#ruleType").value }; save(); render(); closeModals(); toast("Savings rule updated."); };
-$("#saveSettingsBtn").onclick = () => { data.settings = { ...data.settings, name: $("#profileName").value.trim().slice(0, 80), currency: $("#currencySelect").value }; save(); render(); closeModals(); toast("Settings saved."); };
+$("#saveSettingsBtn").onclick = () => { data.settings = { ...data.settings, name: $("#profileName").value.trim().slice(0, 80), currency: $("#currencySelect").value }; setTheme($("#themeSelect").value); if ($("#languageSelect").value !== lang()) setLanguage($("#languageSelect").value); save(); render(); closeModals(); toast("Settings saved."); };
 $("#changePasswordBtn").onclick = changePassword;
 $("#logoutBtn").onclick = lockApp;
 $("#exportBackupBtn").onclick = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `pennywise-backup-${dateKey(today)}.json`; link.click(); URL.revokeObjectURL(link.href); data.settings.lastBackup = new Date().toISOString(); save(); renderBackupNotice(); toast("Backup exported."); };
 $("#importBackupBtn").onclick = () => $("#importBackupInput").click();
-$("#importBackupInput").onchange = event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const incoming = cleanData(JSON.parse(reader.result)); if (!confirm(`Replace your current data with this backup (${incoming.transactions.length} transactions)?`)) return; data = incoming; save(); render(); closeModals(); toast("Backup imported."); } catch (error) { console.warn("Backup import rejected.", error); toast("Could not import this backup."); } }; reader.readAsText(file); event.target.value = ""; };
-$("#resetDataBtn").onclick = () => { if (confirm("Reset all your data? This can’t be undone. Export a backup first if you’re unsure.")) { data = cleanData(seed); save(); render(); closeModals(); toast("Data reset."); } };
+$("#importBackupInput").onchange = event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const incoming = cleanData(JSON.parse(reader.result)); if (!confirm(tr("Replace your current data with this backup ({n} transactions)?", { n: incoming.transactions.length }))) return; pushUndo(); data = incoming; save(); render(); closeModals(); toast("Backup imported.", "success", { undo: true }); } catch (error) { console.warn("Backup import rejected.", error); toast("Could not import this backup."); } }; reader.readAsText(file); event.target.value = ""; };
+$("#resetDataBtn").onclick = () => { if (confirm(tr("Reset all your data? You can undo right after, but export a backup first if you’re unsure."))) { pushUndo(); data = cleanData(seed); save(); render(); closeModals(); toast("Data reset.", "success", { undo: true }); } };
 $$(".segmented button").forEach(button => button.onclick = () => { $$(".segmented button").forEach(item => item.classList.remove("active")); button.classList.add("active"); currentFilter = button.dataset.filter; transactionLimit = 25; renderTransactions(); }); $("#transactionSearch").oninput = () => { transactionLimit = 25; renderTransactions(); }; $("#transactionSort").onchange = () => { transactionLimit = 25; renderTransactions(); }; $("#showMoreTransactions").onclick = () => { transactionLimit += 25; renderTransactions(); };
 $("#exportBtn").onclick = () => { const rows = [["Type", "Date", "Category", "Amount", "Payment method", "Frequency", "Notes"], ...data.transactions.map(t => [t.type, t.date, t.category, t.amount, t.payment, t.frequency, t.notes])]; const safe = value => { const text = String(value); return /^[=+\-@\t\r]/.test(text) && Number.isNaN(Number(text)) ? "'" + text : text; }; const csv = rows.map(row => row.map(value => `"${safe(value).replaceAll('"', '""')}"`).join(",")).join("\r\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "pennywise-transactions.csv"; link.click(); URL.revokeObjectURL(link.href); toast("CSV export downloaded."); };
 
-$("#todayLabel").textContent = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase(); $("#date").value = dateKey(today);
-document.addEventListener("keydown", event => { if (event.key === "Escape") closeModals(); });
+$("#todayLabel").textContent = today.toLocaleDateString(locale(), { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase(); $("#date").value = dateKey(today);
+document.addEventListener("keydown", event => { if (event.key === "Escape") closeModals(); if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z" && unlocked && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) { event.preventDefault(); undoLast(); } });
 initAuth();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(error => console.warn("Offline mode unavailable.", error));

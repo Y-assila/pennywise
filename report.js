@@ -3,7 +3,7 @@
 const REPORT_PERIOD_LABELS = { month: "Selected month", week: "Current week", quarter: "Last 3 months", half: "Last 6 months", ytd: "Year to date", year: "Last 12 months", custom: "Custom range" };
 const noon = (y, m, d) => new Date(y, m, d, 12);
 const lastOfMonth = (y, m) => noon(y, m + 1, 0);
-const fmtShort = date => date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const fmtShort = date => date.toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
 const daysBetween = (a, b) => Math.round((b - a) / 86400000) + 1;
 const sumBy = (list, key) => { const map = {}; list.forEach(t => { const k = key(t); map[k] = (map[k] || 0) + t.amount; }); return map; };
 const pctText = (value, digits = 0) => value === null || !Number.isFinite(value) ? "—" : `${(value * 100).toFixed(digits)}%`;
@@ -32,7 +32,7 @@ function reportRange(period) {
   const elapsedEnd = end > todayN ? todayN : end;
   const days = daysBetween(start, end);
   return { period, start, end, prevStart, prevEnd, days, elapsedDays: Math.max(1, daysBetween(start, elapsedEnd)), months: Math.max(1, Math.round(days / 30.44)),
-    label: period === "month" ? viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }) : `${fmtShort(start)} – ${fmtShort(end)}`,
+    label: period === "month" ? viewDate.toLocaleDateString(locale(), { month: "long", year: "numeric" }) : `${fmtShort(start)} – ${fmtShort(end)}`,
     prevLabel: `${fmtShort(prevStart)} – ${fmtShort(prevEnd)}` };
 }
 
@@ -40,18 +40,19 @@ function reportBuckets(r, list) {
   const mode = r.days > 62 ? "month" : r.days > 14 ? "week" : "day";
   const buckets = []; const index = {};
   const add = (key, label) => { index[key] = buckets.length; buckets.push({ key, label, income: 0, expense: 0 }); };
-  if (mode === "month") { for (let d = noon(r.start.getFullYear(), r.start.getMonth(), 1); d <= r.end; d = noon(d.getFullYear(), d.getMonth() + 1, 1)) add(dateKey(d).slice(0, 7), d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })); }
-  else if (mode === "week") { for (let d = startOfWeek(r.start); d <= r.end; d = new Date(d.getTime() + 7 * 86400000)) { const k = dateKey(d); add(k, d.toLocaleDateString("en-US", { month: "short", day: "numeric" })); } }
-  else { for (let d = new Date(r.start); d <= r.end; d = new Date(d.getTime() + 86400000)) add(dateKey(d), d.toLocaleDateString("en-US", { day: "numeric", month: "short" })); }
+  if (mode === "month") { for (let d = noon(r.start.getFullYear(), r.start.getMonth(), 1); d <= r.end; d = noon(d.getFullYear(), d.getMonth() + 1, 1)) add(dateKey(d).slice(0, 7), d.toLocaleDateString(locale(), { month: "short", year: "2-digit" })); }
+  else if (mode === "week") { for (let d = startOfWeek(r.start); d <= r.end; d = new Date(d.getTime() + 7 * 86400000)) { const k = dateKey(d); add(k, d.toLocaleDateString(locale(), { month: "short", day: "numeric" })); } }
+  else { for (let d = new Date(r.start); d <= r.end; d = new Date(d.getTime() + 86400000)) add(dateKey(d), d.toLocaleDateString(locale(), { day: "numeric", month: "short" })); }
   list.forEach(t => { const key = mode === "month" ? t.date.slice(0, 7) : mode === "week" ? dateKey(startOfWeek(dateAtNoon(t.date))) : t.date; const i = index[key]; if (i !== undefined) buckets[i][t.type] += t.amount; });
   return { mode, buckets };
 }
 
 function delta(current, previous, upIsGood) {
-  if (!previous) return { text: "No prior data", cls: "flat" };
+  if (!previous) return { text: tr("No prior data"), short: "—", cls: "flat" };
   const change = (current - previous) / Math.abs(previous);
-  if (Math.abs(change) < 0.005) return { text: "● No change", cls: "flat" };
-  return { text: `${change > 0 ? "▲" : "▼"} ${Math.abs(change * 100).toFixed(0)}% vs previous`, cls: (change > 0) === upIsGood ? "good" : "bad" };
+  if (Math.abs(change) < 0.005) return { text: tr("● No change"), short: tr("● No change"), cls: "flat" };
+  const a = change > 0 ? "▲" : "▼", n = Math.abs(change * 100).toFixed(0);
+  return { text: tr("{a} {n}% vs previous", { a, n }), short: `${a} ${n}%`, cls: (change > 0) === upIsGood ? "good" : "bad" };
 }
 
 function buildReport(period) {
@@ -85,29 +86,32 @@ function buildReport(period) {
     { label: "Savings rate", value: pctText(rate), status: rank(rate, 0.2, 0.1, true), note: "Target: keep at least 20% of income." },
     { label: "Spending vs income", value: pctText(spendRatio), status: rank(spendRatio, 0.8, 1, false), note: "Below 80% leaves room to save." },
     { label: "Fixed commitments", value: pctText(fixedShare), status: rank(fixedShare, 0.5, 0.7, false), note: "Recurring costs as a share of income." },
-    { label: "Emergency runway", value: runway === null ? "—" : `${runway.toFixed(1)} months`, status: rank(runway, 3, 1, true), note: "Savings pots ÷ average monthly spending." },
-    { label: "Largest category", value: pctText(topShare), status: rank(topShare, 0.35, 0.5, false), note: categories[0] ? `${categories[0].name} — avoid over-reliance on one cost.` : "No spending recorded." },
+    { label: "Emergency runway", value: runway === null ? "—" : tr("{n} months", { n: runway.toFixed(1) }), status: rank(runway, 3, 1, true), note: "Savings pots ÷ average monthly spending." },
+    { label: "Largest category", value: pctText(topShare), status: rank(topShare, 0.35, 0.5, false), note: categories[0] ? tr("{c} — avoid over-reliance on one cost.", { c: tr(categories[0].name) }) : "No spending recorded." },
     { label: "Budgets respected", value: pctText(withinBudget), status: rank(withinBudget, 0.8, 0.5, true), note: budgets.length ? "Share of budgets kept within limit." : "Set budgets in Savings to track this." }
   ];
-  const insights = [];
-  if (!cur.length) insights.push("No transactions were recorded in this period, so there is nothing to analyse yet.");
+  const insights = []; const cn = name => tr(name);
+  if (!cur.length) insights.push(tr("No transactions were recorded in this period, so there is nothing to analyse yet."));
   else {
-    if (!tot.income) insights.push("No income was recorded. Add your income so savings rate and ratios can be measured.");
-    else if (net < 0) insights.push(`Spending exceeded income by ${money(-net)}. Review the largest categories first.`);
-    else insights.push(`You kept ${money(net)} (${pctText(rate)} of income). ${rate >= 0.2 ? "That meets the 20% savings target." : "Aim for 20% by trimming your largest variable category."}`);
-    if (categories[0]) insights.push(`${categories[0].name} is your largest cost at ${money(categories[0].amount)} (${pctText(categories[0].share)} of spending). A 10% reduction would free ${money(categories[0].amount * 0.1)}.`);
+    if (!tot.income) insights.push(tr("No income was recorded. Add your income so savings rate and ratios can be measured."));
+    else if (net < 0) insights.push(tr("Spending exceeded income by {m}. Review the largest categories first.", { m: money(-net) }));
+    else insights.push(tr(rate >= 0.2 ? "You kept {m} ({p} of income). That meets the 20% savings target." : "You kept {m} ({p} of income). Aim for 20% by trimming your largest variable category.", { m: money(net), p: pctText(rate) }));
+    if (categories[0]) insights.push(tr("{c} is your largest cost at {m} ({p} of spending). A 10% reduction would free {x}.", { c: cn(categories[0].name), m: money(categories[0].amount), p: pctText(categories[0].share), x: money(categories[0].amount * 0.1) }));
     const movers = categories.filter(c => c.prev > 0).map(c => ({ ...c, change: (c.amount - c.prev) / c.prev })).sort((a, b) => b.change - a.change);
-    if (movers[0] && movers[0].change > 0.2) insights.push(`${movers[0].name} rose ${pctText(movers[0].change)} versus the previous period (+${money(movers[0].amount - movers[0].prev)}).`);
-    const drop = movers[movers.length - 1]; if (drop && drop.change < -0.2) insights.push(`Good progress: ${drop.name} fell ${pctText(-drop.change)} versus the previous period.`);
-    if (topExpenses[0]) insights.push(`Your largest single expense was ${money(topExpenses[0].amount)} on ${topExpenses[0].category} (${fmtShort(dateAtNoon(topExpenses[0].date))}).`);
+    if (movers[0] && movers[0].change > 0.2) insights.push(tr("{c} rose {p} versus the previous period (+{m}).", { c: cn(movers[0].name), p: pctText(movers[0].change), m: money(movers[0].amount - movers[0].prev) }));
+    const drop = movers[movers.length - 1]; if (drop && drop.change < -0.2) insights.push(tr("Good progress: {c} fell {p} versus the previous period.", { c: cn(drop.name), p: pctText(-drop.change) }));
+    if (topExpenses[0]) insights.push(tr("Your largest single expense was {m} on {c} ({d}).", { m: money(topExpenses[0].amount), c: cn(topExpenses[0].category), d: fmtShort(dateAtNoon(topExpenses[0].date)) }));
     const over = budgets.filter(b => b.spent > b.limit).sort((a, b) => (b.spent - b.limit) - (a.spent - a.limit));
-    if (over[0]) insights.push(`${over[0].category} is ${money(over[0].spent - over[0].limit)} over its budget. Pause or reduce this category.`);
-    if (fixedShare !== null && fixedShare > 0.5) insights.push(`Recurring commitments take ${pctText(fixedShare)} of income, which limits flexibility. Review subscriptions and contracts.`);
-    if (runway !== null && runway < 3) insights.push(`Your emergency fund covers ${runway.toFixed(1)} months of spending. Build towards 3–6 months.`);
-    if (prate !== null && rate !== null && rate > prate + 0.02) insights.push(`Your savings rate improved from ${pctText(prate)} to ${pctText(rate)}.`);
+    if (over[0]) insights.push(tr("{c} is {m} over its budget. Pause or reduce this category.", { c: cn(over[0].category), m: money(over[0].spent - over[0].limit) }));
+    if (fixedShare !== null && fixedShare > 0.5) insights.push(tr("Recurring commitments take {p} of income, which limits flexibility. Review subscriptions and contracts.", { p: pctText(fixedShare) }));
+    if (runway !== null && runway < 3) insights.push(tr("Your emergency fund covers {n} months of spending. Build towards 3–6 months.", { n: runway.toFixed(1) }));
+    if (prate !== null && rate !== null && rate > prate + 0.02) insights.push(tr("Your savings rate improved from {a} to {b}.", { a: pctText(prate), b: pctText(rate) }));
   }
-  const summary = !cur.length ? "No activity was recorded in this period."
-    : `Between ${fmtShort(r.start)} and ${fmtShort(r.end)} you earned ${money(tot.income)} and spent ${money(tot.expense)}, leaving a net result of ${money(net)}${rate !== null ? ` (a savings rate of ${pctText(rate)})` : ""}. ${ptot.expense ? (tot.expense > ptot.expense ? `Spending is ${pctText((tot.expense - ptot.expense) / ptot.expense)} higher than the previous period.` : `Spending is ${pctText((ptot.expense - tot.expense) / ptot.expense)} lower than the previous period.`) : "There is no earlier period to compare with yet."}${categories[0] ? ` Your biggest category was ${categories[0].name} (${pctText(categories[0].share)} of spending).` : ""}`;
+  const summary = !cur.length ? tr("No activity was recorded in this period.") : [
+    tr(rate !== null ? "Between {a} and {b} you earned {i} and spent {e}, leaving a net result of {n} (a savings rate of {r})." : "Between {a} and {b} you earned {i} and spent {e}, leaving a net result of {n}.", { a: fmtShort(r.start), b: fmtShort(r.end), i: money(tot.income), e: money(tot.expense), n: money(net), r: pctText(rate) }),
+    ptot.expense ? (tot.expense > ptot.expense ? tr("Spending is {p} higher than the previous period.", { p: pctText((tot.expense - ptot.expense) / ptot.expense) }) : tr("Spending is {p} lower than the previous period.", { p: pctText((ptot.expense - tot.expense) / ptot.expense) })) : tr("There is no earlier period to compare with yet."),
+    categories[0] ? tr("Your biggest category was {c} ({p} of spending).", { c: cn(categories[0].name), p: pctText(categories[0].share) }) : ""
+  ].filter(Boolean).join(" ");
   return { r, tot, ptot, net, pnet, rate, prate, avgDaily: tot.expense / r.elapsedDays, pAvgDaily: ptot.expense / Math.max(1, daysBetween(r.prevStart, r.prevEnd)), categories, sources, topExpenses, payments, fixed, movedToSavings, budgets, health, insights, summary,
     trend: reportBuckets(r, cur), count: cur.length, snapshot: { balance: allBalance(), potsSaved, goalsSaved, goals: data.goals.map(g => ({ ...g, status: goalStatus(g).status })) } };
 }
@@ -134,27 +138,27 @@ function reportHTML(rep) {
   const { r, tot, ptot, net, pnet, rate, prate } = rep;
   const dl = d => `<span class="rp-delta ${d.cls}">${h(d.text)}</span>`;
   const kpi = (label, value, d, sub) => `<div class="rp-kpi"><small>${label}</small><strong>${h(value)}</strong>${d ? dl(d) : ""}${sub ? `<span>${h(sub)}</span>` : ""}</div>`;
-  const rateDelta = prate === null || rate === null ? { text: "No prior data", cls: "flat" } : { text: `${rate >= prate ? "▲" : "▼"} ${Math.abs((rate - prate) * 100).toFixed(1)} pts vs previous`, cls: rate >= prate ? "good" : "bad" };
-  const chg = (c, p, upIsGood) => { if (!p) return `<span class="rp-delta flat">—</span>`; const d = delta(c, p, upIsGood); return `<span class="rp-delta ${d.cls}">${h(d.text.replace(" vs previous", ""))}</span>`; };
+  const rateDelta = prate === null || rate === null ? { text: tr("No prior data"), cls: "flat" } : { text: tr("{a} {n} pts vs previous", { a: rate >= prate ? "▲" : "▼", n: Math.abs((rate - prate) * 100).toFixed(1) }), cls: rate >= prate ? "good" : "bad" };
+  const chg = (c, p, upIsGood) => { if (!p) return `<span class="rp-delta flat">—</span>`; const d = delta(c, p, upIsGood); return `<span class="rp-delta ${d.cls}">${h(d.short)}</span>`; };
   const bar = (share, color) => `<div class="rp-bar"><i style="width:${Math.min(100, Math.round(share * 100))}%;${color ? `background:${color}` : ""}"></i></div>`;
   const table = (head, rows, foot) => `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>${head.map((x, i) => `<th${x.num ? ' class="num"' : ""}>${x.t}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ""}</table></div>`;
   const empty = text => `<p class="rp-foot">${h(text)}</p>`;
   const statusLabel = { good: "Healthy", watch: "Watch", risk: "Action", na: "No data" };
   let html = `<div class="rp">`;
   html += `<div class="rp-card rp-summary"><h2>Executive summary</h2><p>${h(rep.summary)}</p></div>`;
-  html += `<div class="rp-kpis">${kpi("Income", money(tot.income), delta(tot.income, ptot.income, true))}${kpi("Expenses", money(tot.expense), delta(tot.expense, ptot.expense, false))}${kpi("Net result", money(net), delta(net, pnet, true))}${kpi("Savings rate", pctText(rate, 1), rateDelta)}${kpi("Avg daily spend", money(rep.avgDaily), delta(rep.avgDaily, rep.pAvgDaily, false))}${kpi("Moved to savings", money(rep.movedToSavings), null, `${rep.count} transaction${rep.count === 1 ? "" : "s"}`)}</div>`;
+  html += `<div class="rp-kpis">${kpi("Income", money(tot.income), delta(tot.income, ptot.income, true))}${kpi("Expenses", money(tot.expense), delta(tot.expense, ptot.expense, false))}${kpi("Net result", money(net), delta(net, pnet, true))}${kpi("Savings rate", pctText(rate, 1), rateDelta)}${kpi("Avg daily spend", money(rep.avgDaily), delta(rep.avgDaily, rep.pAvgDaily, false))}${kpi("Moved to savings", money(rep.movedToSavings), null, tr(rep.count === 1 ? "{n} transaction" : "{n} transactions", { n: rep.count }))}</div>`;
   html += `<div class="rp-card"><h3>Income vs spending</h3><div class="rp-legend"><span><i class="rp-dot" style="background:var(--rp-teal)"></i>Income</span><span><i class="rp-dot" style="background:var(--rp-coral)"></i>Spending</span><span><i class="rp-dot" style="background:var(--rp-yellow)"></i>Net result</span></div>${rep.count ? trendSVG(rep.trend) : empty("No data to chart yet.")}</div>`;
   html += `<div class="rp-card"><h3>Spending by category</h3>${rep.categories.length ? table([{ t: "Category" }, { t: "Amount", num: 1 }, { t: "Share" }, { t: "Previous", num: 1 }, { t: "Change", num: 1 }], rep.categories.map(c => `<tr><td><i class="rp-dot" style="background:${categoryColors[c.name] || "#b7c4bd"}"></i>${h(c.name)}</td><td class="num">${h(money(c.amount))}</td><td style="min-width:110px">${bar(c.share, categoryColors[c.name])}<small class="rp-foot">${pctText(c.share, 1)}</small></td><td class="num">${h(money(c.prev))}</td><td class="num">${chg(c.amount, c.prev, false)}</td></tr>`), `<tr><td>Total</td><td class="num">${h(money(tot.expense))}</td><td></td><td class="num">${h(money(ptot.expense))}</td><td class="num">${chg(tot.expense, ptot.expense, false)}</td></tr>`) : empty("No spending recorded in this period.")}</div>`;
   html += `<div class="rp-two"><div class="rp-card"><h3>Income sources</h3>${rep.sources.length ? table([{ t: "Source" }, { t: "Amount", num: 1 }, { t: "Share", num: 1 }, { t: "Change", num: 1 }], rep.sources.map(x => `<tr><td>${h(x.name)}</td><td class="num">${h(money(x.amount))}</td><td class="num">${pctText(x.share, 1)}</td><td class="num">${chg(x.amount, x.prev, true)}</td></tr>`)) : empty("No income recorded in this period.")}</div>
-    <div class="rp-card"><h3>Payment methods</h3>${rep.payments.length ? table([{ t: "Method" }, { t: "Spent", num: 1 }, { t: "Share", num: 1 }], rep.payments.map(x => `<tr><td>${h(x.name)}</td><td class="num">${h(money(x.amount))}</td><td class="num">${pctText(x.share, 1)}</td></tr>`)) : empty("No spending recorded.")}<p class="rp-foot">Fixed (recurring) spending: ${h(money(rep.fixed))} · Variable: ${h(money(tot.expense - rep.fixed))}</p></div></div>`;
+    <div class="rp-card"><h3>Payment methods</h3>${rep.payments.length ? table([{ t: "Method" }, { t: "Spent", num: 1 }, { t: "Share", num: 1 }], rep.payments.map(x => `<tr><td>${h(x.name)}</td><td class="num">${h(money(x.amount))}</td><td class="num">${pctText(x.share, 1)}</td></tr>`)) : empty("No spending recorded.")}<p class="rp-foot">${h(tr("Fixed (recurring) spending: {f} · Variable: {v}", { f: money(rep.fixed), v: money(tot.expense - rep.fixed) }))}</p></div></div>`;
   html += `<div class="rp-card"><h3>Ten largest expenses</h3>${rep.topExpenses.length ? table([{ t: "Date" }, { t: "Category" }, { t: "Notes" }, { t: "Method" }, { t: "Amount", num: 1 }], rep.topExpenses.map(t => `<tr><td>${h(fmtShort(dateAtNoon(t.date)))}</td><td>${h(t.category)}</td><td>${h(t.notes || "—")}</td><td>${h(t.payment)}</td><td class="num">${h(money(t.amount))}</td></tr>`)) : empty("No expenses recorded in this period.")}</div>`;
-  if (rep.budgets.length) html += `<div class="rp-card"><h3>Budget performance</h3>${table([{ t: "Category" }, { t: "Budget", num: 1 }, { t: "Spent", num: 1 }, { t: "Remaining", num: 1 }, { t: "Used" }], rep.budgets.map(b => { const used = b.limit ? b.spent / b.limit : 0; return `<tr><td>${h(b.category)}</td><td class="num">${h(money(b.limit))}</td><td class="num">${h(money(b.spent))}</td><td class="num">${h(money(b.limit - b.spent))}</td><td style="min-width:130px">${bar(used, used > 1 ? "var(--rp-coral)" : "")}<span class="rp-chip ${used > 1 ? "risk" : used >= 0.8 ? "watch" : "good"}">${Math.round(used * 100)}% ${used > 1 ? "over" : "used"}</span></td></tr>`; }))}<p class="rp-foot">Monthly limits are scaled to the length of the period (${r.months} month${r.months === 1 ? "" : "s"}).</p></div>`;
+  if (rep.budgets.length) html += `<div class="rp-card"><h3>Budget performance</h3>${table([{ t: "Category" }, { t: "Budget", num: 1 }, { t: "Spent", num: 1 }, { t: "Remaining", num: 1 }, { t: "Used" }], rep.budgets.map(b => { const used = b.limit ? b.spent / b.limit : 0; return `<tr><td>${h(b.category)}</td><td class="num">${h(money(b.limit))}</td><td class="num">${h(money(b.spent))}</td><td class="num">${h(money(b.limit - b.spent))}</td><td style="min-width:130px">${bar(used, used > 1 ? "var(--rp-coral)" : "")}<span class="rp-chip ${used > 1 ? "risk" : used >= 0.8 ? "watch" : "good"}">${h(tr(used > 1 ? "{p}% over" : "{p}% used", { p: Math.round(used * 100) }))}</span></td></tr>`; }))}<p class="rp-foot">${h(tr(r.months === 1 ? "Monthly limits are scaled to the length of the period ({n} month)." : "Monthly limits are scaled to the length of the period ({n} months).", { n: r.months }))}</p></div>`;
   html += `<div class="rp-card"><h3>Financial health indicators</h3><div class="rp-health">${rep.health.map(x => `<div><span class="rp-chip ${x.status}">${statusLabel[x.status]}</span><strong>${h(x.label)}</strong><b>${h(x.value)}</b><small>${h(x.note)}</small></div>`).join("")}</div></div>`;
   const sn = rep.snapshot;
   html += `<div class="rp-card"><h3>Savings & goals snapshot</h3><div class="rp-kpis"><div class="rp-kpi"><small>Available balance</small><strong>${h(money(sn.balance))}</strong></div><div class="rp-kpi"><small>In savings pots</small><strong>${h(money(sn.potsSaved))}</strong></div><div class="rp-kpi"><small>In goals</small><strong>${h(money(sn.goalsSaved))}</strong></div></div>${sn.goals.length ? table([{ t: "Goal" }, { t: "Saved", num: 1 }, { t: "Target", num: 1 }, { t: "Progress" }, { t: "Deadline" }, { t: "Status" }], sn.goals.map(g => `<tr><td>${h(g.name)}</td><td class="num">${h(money(g.saved))}</td><td class="num">${h(money(g.target))}</td><td style="min-width:100px">${bar(g.saved / g.target)}</td><td>${h(fmtShort(dateAtNoon(g.deadline)))}</td><td><span class="rp-chip ${g.status === "Catch up" || g.status === "Past due" ? "watch" : "good"}">${h(g.status)}</span></td></tr>`)) : empty("No goals created yet.")}</div>`;
   html += `<div class="rp-card"><h3>Insights & recommendations</h3><ol class="rp-insights">${rep.insights.map(i => `<li>${h(i)}</li>`).join("")}</ol></div>`;
-  html += `<p class="rp-foot">Compared with ${h(r.prevLabel)}. Figures come from the transactions recorded in Pennywise and are for personal information only, not financial advice.</p></div>`;
-  return html;
+  html += `<p class="rp-foot">${h(tr("Compared with {p}. Figures come from the transactions recorded in Pennywise and are for personal information only, not financial advice.", { p: r.prevLabel }))}</p></div>`;
+  return trHtml(html);
 }
 
 const REPORT_CSS = `
@@ -190,23 +194,23 @@ const REPORT_CSS = `
 .rp-insights{margin:0;padding-left:20px}.rp-insights li{margin-bottom:8px}
 .rp-foot{font-size:11px;color:var(--rp-muted);margin:6px 0 0;display:block}
 @media(max-width:760px){.rp-two{grid-template-columns:1fr}}`;
-const REPORT_SCREEN_VARS = `#reportBody .rp{--rp-ink:var(--ink);--rp-muted:var(--muted);--rp-line:var(--line);--rp-card:var(--surface);--rp-soft:#22343a;--rp-teal:var(--teal);--rp-coral:var(--coral);--rp-yellow:var(--yellow);--rp-good:#4fd1a5;--rp-bad:#ff8a73;--rp-warn:#efba52}
+const REPORT_SCREEN_VARS = `#reportBody .rp{--rp-ink:var(--ink);--rp-muted:var(--muted);--rp-line:var(--line);--rp-card:var(--surface);--rp-soft:var(--track);--rp-teal:var(--teal);--rp-coral:var(--coral);--rp-yellow:var(--yellow);--rp-good:#4fd1a5;--rp-bad:#ff8a73;--rp-warn:#efba52}
 .report-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;margin:4px 0 14px;color:var(--muted);font-size:13px}.report-head strong{color:var(--ink);font-size:15px}
 .report-custom{display:flex;gap:8px}.report-custom input{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}`;
 const reportStyle = document.createElement("style"); reportStyle.textContent = REPORT_CSS + REPORT_SCREEN_VARS; document.head.appendChild(reportStyle);
 
 function renderReports() {
   const period = $("#reportPeriod")?.value || "month"; const rep = buildReport(period);
-  $("#reportBody").innerHTML = `<div class="report-head"><div><strong>${h(REPORT_PERIOD_LABELS[period])} · ${h(rep.r.label)}</strong></div><div>Compared with ${h(rep.r.prevLabel)}</div></div>` + reportHTML(rep);
+  $("#reportBody").innerHTML = `<div class="report-head"><div><strong>${h(tr(REPORT_PERIOD_LABELS[period]))} · ${h(rep.r.label)}</strong></div><div>${h(tr("Compared with {p}", { p: rep.r.prevLabel }))}</div></div>` + reportHTML(rep);
 }
 
 function printableReportHTML(autoPrint) {
   const rep = buildReport($("#reportPeriod").value);
-  const who = data.settings.name || "Pennywise profile";
-  const css = `@page{size:A4;margin:14mm}*{box-sizing:border-box}body{margin:0;padding:0 4px;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif;color:#17211f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  const who = data.settings.name || tr("Pennywise profile");
+  const css = `@page{size:A4;margin:14mm}*{box-sizing:border-box}body{margin:0;padding:0 4px;font-family:-apple-system,"Segoe UI",Inter,system-ui,"Noto Sans Arabic",Tahoma,sans-serif;color:#17211f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rp{--rp-ink:#17211f;--rp-muted:#66746e;--rp-line:#dfe5e1;--rp-card:#fff;--rp-soft:#eef2ef;--rp-teal:#167d72;--rp-coral:#e0604a;--rp-yellow:#d9a02f;--rp-good:#12805f;--rp-bad:#c0432d;--rp-warn:#a97a14}
-.doc-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #167d72;padding-bottom:12px;margin-bottom:18px}.doc-head h1{margin:0;font-size:24px;color:#167d72}.doc-head p{margin:2px 0 0;color:#66746e;font-size:12px}.doc-meta{text-align:right;font-size:12px;color:#66746e}.doc-meta strong{display:block;color:#17211f;font-size:15px}${REPORT_CSS}`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Pennywise report — ${h(rep.r.label)}</title><style>${css}</style></head><body><div class="doc-head"><div><h1>Pennywise</h1><p>Financial report · ${h(who)} · Currency: ${h(data.settings.currency)}</p></div><div class="doc-meta"><strong>${h(REPORT_PERIOD_LABELS[$("#reportPeriod").value])}</strong>${h(rep.r.label)}<br>Generated ${h(fmtShort(today))}</div></div>${reportHTML(rep)}${autoPrint ? "<script>onload=()=>setTimeout(()=>print(),400)<\/script>" : ""}</body></html>`;
+.doc-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #167d72;padding-bottom:12px;margin-bottom:18px}.doc-head h1{margin:0;font-size:24px;color:#167d72}.doc-head p{margin:2px 0 0;color:#66746e;font-size:12px}.doc-meta{text-align:right;font-size:12px;color:#66746e}.doc-meta strong{display:block;color:#17211f;font-size:15px}${REPORT_CSS}html[dir=rtl] .doc-meta{text-align:left}html[dir=rtl] .rp-table th{text-align:right}html[dir=rtl] .rp-table .num{text-align:left}html[dir=rtl] .rp-summary{border-left:1px solid var(--rp-line);border-right:4px solid var(--rp-teal)}html[dir=rtl] .rp-insights{padding-left:0;padding-right:20px}html[dir=rtl] .rp-dot{margin-right:0;margin-left:8px}`;
+  return `<!doctype html><html lang="${lang()}" dir="${lang() === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${h(tr("Pennywise report — {l}", { l: rep.r.label }))}</title><style>${css}</style></head><body><div class="doc-head"><div><h1>Pennywise</h1><p>${h(tr("Financial report · {w} · Currency: {c}", { w: who, c: data.settings.currency }))}</p></div><div class="doc-meta"><strong>${h(tr(REPORT_PERIOD_LABELS[$("#reportPeriod").value]))}</strong>${h(rep.r.label)}<br>${h(tr("Generated {d}", { d: fmtShort(today) }))}</div></div>${reportHTML(rep)}${autoPrint ? "<script>onload=()=>setTimeout(()=>print(),400)<\/script>" : ""}</body></html>`;
 }
 
 function printReport() {
@@ -224,7 +228,7 @@ function exportReportCsv() {
   rows.push([], ["Payment method", "Spent", "Share"]); rep.payments.forEach(c => rows.push([c.name, c.amount, pctText(c.share, 1)]));
   rows.push([], ["Largest expenses", "Date", "Category", "Amount", "Notes"]); rep.topExpenses.forEach(t => rows.push(["", t.date, t.category, t.amount, t.notes]));
   rows.push([], ["Period", "Income", "Spending", "Net"]); rep.trend.buckets.forEach(b => rows.push([b.label, b.income, b.expense, b.income - b.expense]));
-  const csv = rows.map(row => row.map(value => `"${safe(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n");
+  const csv = rows.map(row => row.map(value => `"${safe(typeof value === "string" ? tr(value) : (value ?? "")).replaceAll('"', '""')}"`).join(",")).join("\r\n");
   const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = `pennywise-report-${dateKey(today)}.csv`; link.click(); URL.revokeObjectURL(link.href); toast("Report CSV downloaded.");
 }
 

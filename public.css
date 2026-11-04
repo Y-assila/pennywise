@@ -170,3 +170,12 @@ a { color: inherit; text-decoration: none; }
   .site-footer div { gap: 12px; }
   .site-footer small { line-height: 1.5; }
 }
+
+/* language switch + right-to-left */
+.lang-switch{display:inline-flex;gap:2px;padding:3px;border:1px solid #dfe5e1;border-radius:10px;background:#fff}
+.lang-switch button{padding:5px 10px;border:0;border-radius:7px;background:transparent;color:#66746e;font:700 12px inherit;cursor:pointer}
+.lang-switch button.active{background:#167d72;color:#fff}
+html[dir=rtl] body,html[lang=ar] body,html[lang=ar] button{font-family:"Noto Sans Arabic","Segoe UI",Tahoma,system-ui,sans-serif}
+html[lang=ar] .eyebrow,html[lang=ar] h1,html[lang=ar] h2,html[lang=ar] h3{letter-spacing:0 !important}
+html[dir=rtl] .hero-visual{direction:ltr}
+html[dir=rtl] .hero-visual *{direction:rtl}

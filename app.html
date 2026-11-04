@@ -8,11 +8,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
+<script>try{var d=document.documentElement;d.dataset.theme=localStorage.getItem("pennywise-theme")||"dark";var l=localStorage.getItem("pennywise-lang")||(navigator.language||"en").slice(0,2);if(l==="ar"){d.lang="ar";d.dir="rtl"}else if(l==="fr"){d.lang="fr"}}catch(e){}</script>
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
+      <div class="lang-switch auth-lang" role="group" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button><button type="button" data-lang="ar" lang="ar">عربي</button></div>
       <div class="brand auth-brand"><span class="brand-mark" data-icon="sparkles"></span><span>Pennywise</span></div>
       <p class="eyebrow" id="authEyebrow">PRIVATE LOCAL FINANCE APP</p>
       <h1 id="authTitle">Create your password</h1>
@@ -54,6 +56,8 @@
         <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation menu" aria-expanded="false"><span data-icon="overview"></span></button>
         <div class="mobile-brand"><span class="brand-mark" data-icon="sparkles"></span> Pennywise</div>
         <div class="topbar-actions">
+          <div class="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button><button type="button" data-lang="ar" lang="ar">عربي</button></div>
+          <button class="icon-button" id="themeToggle" type="button" aria-label="Switch theme" title="Switch theme"><span data-icon="sun"></span></button>
           <button class="icon-button" id="exportBtn" title="Export CSV"><span data-icon="download"></span><span>Export CSV</span></button>
           <button class="avatar" aria-label="Profile">?</button>
         </div>
@@ -71,6 +75,7 @@
             <div class="heading-actions"><div class="month-nav"><button id="monthPrev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="monthNext" aria-label="Next month">›</button></div><button class="primary-btn" id="addTransactionBtn"><span data-icon="plus"></span> Add transaction</button></div>
           </div>
           <div id="budgetAlerts" aria-live="polite"></div>
+          <div id="safeCard"></div>
           <div class="stat-grid">
             <article class="stat-card balance-card">
               <div class="stat-label">TOTAL BALANCE <span class="info">i</span></div>
@@ -124,8 +129,9 @@
         </section>
 
         <section class="view" id="transactionsView">
-          <div class="page-heading"><div><p class="eyebrow">YOUR MONEY MOVEMENT</p><h1>Transactions</h1><p class="muted">Every coin has a story.</p></div><button class="primary-btn" id="addTransactionBtn2"><span data-icon="plus"></span> Add transaction</button></div>
+          <div class="page-heading"><div><p class="eyebrow">YOUR MONEY MOVEMENT</p><h1>Transactions</h1><p class="muted">Every coin has a story.</p></div><div class="heading-actions"><button class="secondary-btn" id="recurringBtn" type="button">Recurring</button><button class="secondary-btn" id="importCsvBtn" type="button">Import CSV</button><button class="primary-btn" id="addTransactionBtn2"><span data-icon="plus"></span> Add transaction</button></div></div>
           <div class="filter-row"><div class="segmented"><button class="active" data-filter="all">All</button><button data-filter="income">Income</button><button data-filter="expense">Expenses</button></div><select id="transactionSort" aria-label="Sort transactions"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="largest">Largest amount</option><option value="smallest">Smallest amount</option></select><label class="search-field"><span data-icon="search"></span><input class="search-input" id="transactionSearch" placeholder="Search transactions"></label></div>
+          <div class="filter-row filter-extra"><label class="date-filter"><span>From</span><input type="date" id="filterFrom"></label><label class="date-filter"><span>To</span><input type="date" id="filterTo"></label><select id="filterCategory" aria-label="Category"><option value="">All categories</option></select><select id="filterTag" aria-label="Tag"><option value="">All tags</option></select><button class="text-btn" id="clearFilters" type="button" hidden>Clear filters</button></div>
           <article class="panel table-panel"><div class="table-header"><strong>All activity</strong><span class="muted" id="transactionCount">0 transactions</span></div><div class="transaction-table" id="transactionTable"></div><button class="secondary-btn full" id="showMoreTransactions" hidden>Show more</button></article>
         </section>
 
@@ -134,7 +140,7 @@
           <div class="savings-hero"><div><p class="eyebrow">TOTAL SAVED</p><h2 id="savedTotal">0.00 MAD</h2><p class="muted">You’re making steady progress. Keep it up!</p></div><div class="hero-progress"><div class="large-ring" id="savingsRing"><span>0%</span></div><div><strong id="emergencyProgress">0 / 0 MAD</strong><small>emergency fund target · 3–6 months</small></div></div></div>
           <div class="section-heading"><div><h2>Your savings pots</h2><p class="muted">Give every goal a home.</p></div><button class="text-btn" id="addPotBtn"><span data-icon="plus"></span> New pot</button></div>
           <div class="pots-grid" id="potsGrid"></div>
-          <div class="section-heading"><div><h2>Monthly category budgets</h2><p class="muted">Stay ahead of your spending.</p></div><button class="text-btn" id="addBudgetBtn"><span data-icon="plus"></span> Set budget</button></div>
+          <div class="section-heading"><div><h2>Monthly category budgets</h2><p class="muted">Stay ahead of your spending.</p></div><div class="heading-btns"><button class="text-btn" id="setLimitBtn" type="button">Monthly limit</button><button class="text-btn" id="addBudgetBtn"><span data-icon="plus"></span> Set budget</button></div></div>
           <div class="budget-grid" id="budgetGrid"></div>
           <article class="advice-card"><span class="advice-icon">✦</span><div><p class="eyebrow">A LITTLE INSIGHT</p><h3 id="savingAdvice">Your advice will appear here.</h3><p class="muted" id="savingAdviceBody"></p></div></article>
         </section>
@@ -158,7 +164,7 @@
     </main>
   </div>
 
-  <div class="modal-backdrop" id="transactionModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">ADD TO YOUR STORY</p><h2>New transaction</h2><div class="type-toggle"><button class="active" data-type="expense">Money out</button><button data-type="income">Money in</button></div><form id="transactionForm"><label>Amount<input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required></label><div class="form-row"><label>Date<input type="date" id="date" required></label><label>Category / source<select id="category"></select></label></div><div class="form-row"><label>Payment method<select id="payment"><option>Bank transfer</option><option>Debit card</option><option>Credit card</option><option>Cash</option><option>Direct deposit</option></select></label><label>Frequency<select id="frequency"><option>One-time</option><option>Monthly</option><option>Weekly</option></select></label></div><label>Notes <span class="optional">optional</span><input type="text" id="notes" placeholder="What was this for?"></label><button class="primary-btn full" type="submit">Add transaction</button></form></div></div>
+  <div class="modal-backdrop" id="transactionModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">ADD TO YOUR STORY</p><h2>New transaction</h2><div class="type-toggle"><button class="active" data-type="expense">Money out</button><button data-type="income">Money in</button></div><form id="transactionForm"><label>Amount<input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required></label><div class="form-row"><label>Date<input type="date" id="date" required></label><label>Category / source<select id="category"></select></label></div><div class="form-row"><label>Payment method<select id="payment"><option value="Bank transfer">Bank transfer</option><option value="Debit card">Debit card</option><option value="Credit card">Credit card</option><option value="Cash">Cash</option><option value="Direct deposit">Direct deposit</option></select></label><label>Frequency<select id="frequency"><option value="One-time">One-time</option><option value="Monthly">Monthly</option><option value="Weekly">Weekly</option></select></label></div><label>Notes <span class="optional">optional</span><input type="text" id="notes" placeholder="What was this for?"></label><label>Tags <span class="optional">optional</span><input type="text" id="tags" placeholder="e.g. work, family" maxlength="120"></label><div class="split-box" id="splitBox"><label class="check-row"><input type="checkbox" id="splitToggle"><span>Split this expense into several categories</span></label><div id="splitRows" hidden><div id="splitList"></div><p class="muted split-remaining" id="splitRemaining"></p><button type="button" class="text-btn" id="addSplitRow"><span data-icon="plus"></span> Add a category</button></div></div><button type="button" class="text-btn" id="manageCategoriesLink">Manage categories</button><button class="primary-btn full" type="submit">Add transaction</button></form></div></div>
   <div class="modal-backdrop" id="goalModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">SET AN INTENTION</p><h2>New goal</h2><form id="goalForm"><label>Goal name<input id="goalName" placeholder="e.g. Trip to Lisbon" required></label><div class="form-row"><label>Target amount<input type="number" id="goalTarget" min="1" step="0.01" placeholder="3000" required></label><label>Deadline<input type="date" id="goalDeadline" required></label></div><button class="primary-btn full" type="submit">Create goal</button></form></div></div>
   <div class="modal-backdrop" id="potModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">CREATE A POCKET</p><h2>New savings pot</h2><form id="potForm"><label>Pot name<input id="potName" placeholder="e.g. New laptop" required></label><div class="form-row"><label>Target amount<input type="number" id="potTarget" min="1" step="0.01" placeholder="1000" required></label><label>Color<select id="potColor"><option value="teal">Teal</option><option value="coral">Coral</option><option value="purple">Purple</option><option value="yellow">Yellow</option></select></label></div><button class="primary-btn full" type="submit">Create pot</button></form></div></div>
   <div class="modal-backdrop" id="ruleModal"><div class="modal"><button class="close-btn" data-close>×</button><p class="eyebrow">AUTOMATE THE GOOD STUFF</p><h2>Savings rule</h2><form id="ruleForm"><label>Save <span class="inline-input"><input type="number" id="ruleAmount" min="1" step="1" value="20"><select id="ruleType"><option value="percent">% of every income</option><option value="fixed">fixed amount per income</option><option value="off">Off (don’t auto-save)</option></select></span></label><p class="muted form-hint">We’ll use this rule to show how much of your income is protected.</p><button class="primary-btn full" type="submit">Save rule</button></form></div></div>
@@ -169,7 +175,13 @@
     <section class="settings-section"><h3>Profile</h3>
       <label>Your name<input id="profileName" placeholder="e.g. Jamie" maxlength="80"></label>
       <label>Currency<span class="optional">Display label only. Amounts are not converted.</span><select id="currencySelect"><option value="MAD">MAD</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option></select></label>
+      <label>Language<select id="languageSelect"><option value="en">English</option><option value="fr">Français</option><option value="ar">العربية</option></select></label>
+      <label>Theme<select id="themeSelect"><option value="dark">Dark</option><option value="light">Light</option></select></label>
       <button class="primary-btn full" id="saveSettingsBtn" type="button">Save settings</button>
+    </section>
+    <section class="settings-section"><h3>Customize</h3>
+      <div class="settings-row"><button class="secondary-btn" id="openCategoriesBtn" type="button">Categories</button><button class="secondary-btn" id="openRecurringBtn" type="button">Recurring</button></div>
+      <button class="secondary-btn full" id="openCsvBtn" type="button">Import bank CSV</button>
     </section>
     <section class="settings-section"><h3>Security</h3>
       <p class="muted form-hint">The password locks the app on this device. If you forget it, it can’t be recovered.</p>
@@ -185,9 +197,39 @@
       <button class="secondary-btn full danger-btn" id="resetDataBtn" type="button">Reset my data</button>
     </section>
   </div></div>
+
+  <div class="modal-backdrop" id="categoriesModal"><div class="modal wide"><button class="close-btn" data-close aria-label="Close">×</button><p class="eyebrow">MAKE IT YOURS</p><h2>Categories</h2>
+    <div class="type-toggle" id="catKindToggle"><button class="active" data-kind="expense" type="button">Money out</button><button data-kind="income" type="button">Money in</button></div>
+    <div class="cat-list" id="categoryEditor"></div>
+    <form id="newCategoryForm" class="cat-add"><input type="color" id="newCatColor" value="#31b39f" aria-label="Color"><button type="button" class="cat-icon-btn" id="newCatIcon" aria-label="Icon"></button><input id="newCatName" placeholder="New category name" maxlength="40" required><button class="primary-btn" type="submit">Add</button></form>
+    <p class="muted form-hint">Click the icon to change it. Renaming updates your transactions. Deleting a category moves its transactions to “Other”.</p></div></div>
+  <div class="modal-backdrop" id="recurringModal"><div class="modal wide"><button class="close-btn" data-close aria-label="Close">×</button><p class="eyebrow">SET IT AND FORGET IT</p><h2>Recurring transactions</h2>
+    <p class="muted form-hint">Salary, rent, subscriptions… Pause, resume or end them here. To add one, choose Monthly or Weekly when creating a transaction.</p><div class="rec-list" id="recurringList"></div></div></div>
+  <div class="modal-backdrop" id="csvModal"><div class="modal wide"><button class="close-btn" data-close aria-label="Close">×</button><p class="eyebrow">BRING YOUR BANK DATA</p><h2>Import bank CSV</h2>
+    <p class="muted form-hint">Download your statement from your bank as a CSV file, choose it here, and check that the columns match.</p>
+    <button class="secondary-btn full" type="button" id="csvChooseBtn">Choose CSV file</button><input type="file" id="csvFile" accept=".csv,text/csv,text/plain" hidden>
+    <div id="csvMapping" hidden>
+      <div class="form-row"><label>Date column<select id="mapDate"></select></label><label>Description column<select id="mapDesc"></select></label></div>
+      <div class="form-row"><label>Amount column<select id="mapAmount"></select></label><label>Category column <span class="optional">optional</span><select id="mapCategory"></select></label></div>
+      <div class="form-row"><label>Debit column <span class="optional">optional</span><select id="mapDebit"></select></label><label>Credit column <span class="optional">optional</span><select id="mapCredit"></select></label></div>
+      <div class="form-row"><label>Date format<select id="csvDateFormat"><option value="auto">Automatic</option><option value="dmy">Day / Month / Year</option><option value="mdy">Month / Day / Year</option><option value="ymd">Year-Month-Day</option></select></label><label>Amount sign<select id="csvSign"><option value="negative">Negative = money out</option><option value="positive">Positive = money out</option></select></label></div>
+      <div class="form-row"><label>Default expense category<select id="csvExpenseCat"></select></label><label>Default income category<select id="csvIncomeCat"></select></label></div>
+      <div class="csv-preview" id="csvPreview"></div>
+      <button class="primary-btn full" type="button" id="csvImportBtn">Import transactions</button>
+    </div></div></div>
+  <div class="modal-backdrop" id="limitModal"><div class="modal"><button class="close-btn" data-close aria-label="Close">×</button><p class="eyebrow">SPEND WITH INTENTION</p><h2>Monthly spending limit</h2>
+    <form id="limitForm"><label>Total you want to spend each month<input type="number" id="limitAmount" min="0" step="1" placeholder="e.g. 6000"></label><p class="muted form-hint">Pennywise uses this to show how much you can safely spend each day. Leave it empty to use the sum of your category budgets instead.</p><button class="primary-btn full" type="submit">Save limit</button></form></div></div>
+  <div class="modal-backdrop" id="welcomeModal"><div class="modal">
+    <div class="welcome-step" data-step="1"><p class="eyebrow">WELCOME</p><h2>Let’s set up your space</h2><div class="lang-switch big" role="group" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button><button type="button" data-lang="ar" lang="ar">عربي</button></div><label>Your name<input id="welcomeName" placeholder="e.g. Jamie" maxlength="80"></label><label>Currency<select id="welcomeCurrency"><option value="MAD">MAD</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option></select></label></div>
+    <div class="welcome-step" data-step="2" hidden><p class="eyebrow">HOW IT WORKS</p><h2>Three ideas to know</h2><ul class="welcome-list"><li><strong>Balance</strong> is the money you can spend: income minus expenses minus what you move to savings.</li><li><strong>Savings pots</strong> keep money safe with no deadline. <strong>Goals</strong> are things you want by a date.</li><li><strong>Undo</strong> appears after every change, so you can experiment freely.</li></ul></div>
+    <div class="welcome-step" data-step="3" hidden><p class="eyebrow">LAST STEP</p><h2>Set a monthly spending limit</h2><p class="muted form-hint">Optional. We will show how much you can safely spend each day.</p><label>Monthly limit<input type="number" id="welcomeLimit" min="0" step="1" placeholder="e.g. 6000"></label></div>
+    <div class="welcome-actions"><button class="text-btn" id="welcomeSkip" type="button">Skip</button><span class="spacer"></span><button class="secondary-btn" id="welcomeBack" type="button">Back</button><button class="primary-btn" id="welcomeNext" type="button">Next</button></div>
+    <div class="welcome-dots"><i class="on"></i><i></i><i></i></div></div></div>
   <div class="toast" id="toast"></div>
+  <script src="i18n.js?v=9"></script>
   <script src="icons.js"></script>
-  <script src="app.js?v=8"></script>
-  <script src="report.js?v=8"></script>
+  <script src="app.js?v=9"></script>
+  <script src="report.js?v=9"></script>
+  <script src="features.js?v=9"></script>
 </body>
 </html>
