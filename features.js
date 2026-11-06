@@ -97,8 +97,8 @@ $("#recurringList").addEventListener("click", event => {
 $("#recurringBtn").onclick = openRecurring; $("#openRecurringBtn").onclick = openRecurring;
 
 /* ---------- Transaction filters ---------- */
-["#filterFrom", "#filterTo", "#filterCategory", "#filterTag"].forEach(id => { $(id).onchange = () => { transactionLimit = 25; renderTransactions(); }; });
-$("#clearFilters").onclick = () => { ["#filterFrom", "#filterTo", "#filterCategory", "#filterTag", "#transactionSearch"].forEach(id => { $(id).value = ""; }); transactionLimit = 25; renderTransactions(); };
+["#filterFrom", "#filterTo", "#filterCategory", "#filterTag", "#filterAccount"].forEach(id => { $(id).onchange = () => { transactionLimit = 25; renderTransactions(); }; });
+$("#clearFilters").onclick = () => { ["#filterFrom", "#filterTo", "#filterCategory", "#filterTag", "#filterAccount", "#transactionSearch"].forEach(id => { $(id).value = ""; }); transactionLimit = 25; renderTransactions(); };
 
 /* ---------- Split an expense ---------- */
 function setSplitVisible(visible) { $("#splitBox").hidden = !visible; }
@@ -223,7 +223,8 @@ function renderCsvPreview() {
 ["mapDate", "mapDesc", "mapAmount", "mapCategory", "mapDebit", "mapCredit", "csvDateFormat", "csvSign", "csvExpenseCat", "csvIncomeCat"].forEach(id => { $(`#${id}`).onchange = renderCsvPreview; });
 $("#csvImportBtn").onclick = () => {
   const result = csvCandidates(); if (!result.out.length) return; pushUndo(); const stamp = Date.now();
-  result.out.forEach((t, i) => data.transactions.push({ id: `csv-${stamp}-${i}`, type: t.type, amount: t.amount, date: t.date, category: t.category, payment: "Bank transfer", frequency: "One-time", notes: t.notes, tags: ["imported"], generated: false, sourceId: null, occurrence: null, splitId: null, paused: false, resumeFrom: null, endDate: null }));
+  const account = data.accounts.some(a => a.id === $("#csvAccount").value) ? $("#csvAccount").value : data.accounts[0].id;
+  result.out.forEach((t, i) => data.transactions.push({ id: `csv-${stamp}-${i}`, account, type: t.type, amount: t.amount, date: t.date, category: t.category, payment: "Bank transfer", frequency: "One-time", notes: t.notes, tags: ["imported"], generated: false, sourceId: null, occurrence: null, splitId: null, paused: false, resumeFrom: null, endDate: null }));
   refreshAll(); closeModals(); toast(tr("{n} transactions imported.", { n: result.out.length }), "success", { undo: true });
 };
 
@@ -246,4 +247,23 @@ $("#welcomeNext").onclick = () => { if (welcomeStep < 3) showWelcomeStep(welcome
 $("#welcomeBack").onclick = () => showWelcomeStep(Math.max(1, welcomeStep - 1));
 $("#welcomeSkip").onclick = () => finishWelcome(false);
 
-function renderExtras() { renderSafeCard(); maybeOnboard(); }
+/* ---------- Savings activity log ---------- */
+function renderSavingsLog() {
+  const box = $("#savingsLog"); if (!box) return;
+  const name = destination => { const [type, id] = String(destination).split(":"); const item = (type === "goal" ? data.goals : data.pots).find(x => String(x.id) === id); return item ? item.name : tr("Deleted"); };
+  const rows = [...data.transfers].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id))).slice(0, 10).map(t => {
+    const out = t.amount < 0; const label = t.automatic || String(t.id).startsWith("rule-") ? tr("Auto-saved to {d}", { d: name(t.destination) }) : out ? tr("Withdrawn from {d}", { d: name(t.destination) }) : tr("Moved to {d}", { d: name(t.destination) });
+    return `<div class="log-row"><span class="log-date">${h(dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" }))}</span><span class="log-label">${h(label)}</span><strong class="${out ? "income" : "expense"}"><bdi dir="ltr">${h((out ? "+" : "−") + money(Math.abs(t.amount)))}</bdi></strong></div>`;
+  }).join("");
+  box.innerHTML = rows || emptyState("savings", "No savings movements yet.", "Move money into a pot or goal and it will show up here.");
+}
+/* Navigating away dismisses the Undo message so it can never be tapped by accident */
+document.addEventListener("click", event => { if (event.target.closest("[data-view], #mobileMenuBtn, .sidebar")) $("#toast").classList.remove("show"); }, true);
+
+/* Empty-state buttons and bottom-nav syncing */
+document.addEventListener("click", event => {
+  const empty = event.target.closest("[data-empty-action]"); if (empty) { const map = { transaction: "#addTransactionBtn", goal: "#addGoalBtn", pot: "#addPotBtn", budget: "#addBudgetBtn" }; $(map[empty.dataset.emptyAction])?.click(); }
+  const nav = event.target.closest(".nav-item"); if (nav) { $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.view === nav.dataset.view)); window.scrollTo({ top: 0 }); }
+});
+
+function renderExtras() { renderSafeCard(); renderSavingsLog(); if (typeof renderAccounts === "function") renderAccounts(); if (typeof renderUpcoming === "function") renderUpcoming(); maybeOnboard(); }

@@ -102,6 +102,12 @@ const TRIPLES = [
   ["Target · {d}", "Cible · {d}", "الهدف · {d}"], ["{p}% complete · {s}", "{p} % atteint · {s}", "اكتمل {p}% · {s}"], ["{m}/week", "{m}/semaine", "{m}/أسبوع"], ["Done", "Terminé", "تم"], ["On track", "Dans les temps", "على المسار"], ["Catch up", "À rattraper", "يحتاج تعويضاً"], ["Complete", "Terminé", "مكتمل"], ["Past due", "En retard", "متأخر"],
   ["No goals yet. Add one to give your savings a direction.", "Aucun objectif. Ajoutez-en un pour donner une direction à votre épargne.", "لا توجد أهداف بعد. أضف هدفاً ليكون لمدخراتك وجهة."],
   ["SPEND WITH INTENTION", "DÉPENSEZ AVEC INTENTION", "أنفق بقصد"], ["Set category budget", "Définir un budget par catégorie", "تحديد ميزانية فئة"], ["Save budget", "Enregistrer le budget", "حفظ الميزانية"],
+  ["Savings activity", "Mouvements d’épargne", "حركة المدخرات"], ["Every move between your balance and your savings.", "Chaque mouvement entre votre solde et votre épargne.", "كل حركة بين رصيدك ومدخراتك."], ["No savings movements yet.", "Aucun mouvement d’épargne pour l’instant.", "لا توجد حركات ادخار بعد."],
+  ["Auto-saved to {d}", "Épargné automatiquement vers {d}", "ادخار تلقائي إلى {d}"], ["Withdrawn from {d}", "Retiré de {d}", "سحب من {d}"], ["Moved to {d}", "Déplacé vers {d}", "نقل إلى {d}"], ["Deleted", "Supprimé", "محذوف"],
+  ["Add your first income or expense to see your money come to life.", "Ajoutez votre premier revenu ou dépense pour donner vie à votre argent.", "أضف أول دخل أو مصروف لترى مالك يدب فيه الحياة."], ["Try changing your search or filters.", "Essayez de modifier votre recherche ou vos filtres.", "جرّب تغيير البحث أو المرشحات."],
+  ["Add one to give your savings a direction.", "Ajoutez-en un pour donner une direction à votre épargne.", "أضف هدفاً ليكون لمدخراتك وجهة."], ["No savings pots yet.", "Aucune cagnotte pour l’instant.", "لا توجد حصّالات بعد."], ["Create your first one to start setting money aside.", "Créez la première pour commencer à mettre de l’argent de côté.", "أنشئ أولى حصّالاتك لتبدأ بادخار المال."],
+  ["Set a monthly limit for a category to stay ahead of your spending.", "Fixez une limite mensuelle pour une catégorie afin de garder le contrôle.", "حدّد حداً شهرياً لفئة ما لتبقى متحكماً في إنفاقك."], ["No activity in this period yet.", "Aucune activité sur cette période.", "لا يوجد نشاط في هذه الفترة بعد."], ["Add a transaction to see your cash flow.", "Ajoutez une transaction pour voir vos flux.", "أضف معاملة لترى تدفقك النقدي."],
+  ["Goal reached!", "Objectif atteint !", "تم تحقيق الهدف!"], ["Move money into a pot or goal and it will show up here.", "Déplacez de l’argent vers une cagnotte ou un objectif et il apparaîtra ici.", "انقل المال إلى حصّالة أو هدف وسيظهر هنا."],
   /* settings & dialogs */
   ["PROFILE & PREFERENCES", "PROFIL ET PRÉFÉRENCES", "الملف الشخصي والتفضيلات"], ["Your local Pennywise account", "Votre compte Pennywise local", "حسابك المحلي في Pennywise"], ["Your profile", "Votre profil", "ملفك الشخصي"], ["Your name", "Votre nom", "اسمك"], ["e.g. Jamie", "ex. Sami", "مثال: سامي"],
   ["Currency", "Devise", "العملة"], ["Display label only. Amounts are not converted.", "Libellé d’affichage uniquement. Les montants ne sont pas convertis.", "للعرض فقط. لا يتم تحويل المبالغ."], ["Theme", "Thème", "المظهر"], ["Dark", "Sombre", "داكن"], ["Light", "Clair", "فاتح"],
@@ -173,7 +179,30 @@ const TRIPLES = [
   ["{c} is your largest cost at {m} ({p} of spending). A 10% reduction would free {x}.", "{c} est votre plus gros poste à {m} ({p} des dépenses). Une réduction de 10 % libérerait {x}.", "{c} هي أكبر تكلفة لديك بمبلغ {m} ({p} من الإنفاق). تقليلها بنسبة 10% سيوفر {x}."], ["{c} rose {p} versus the previous period (+{m}).", "{c} a augmenté de {p} par rapport à la période précédente (+{m}).", "ارتفعت {c} بنسبة {p} مقارنة بالفترة السابقة (بزيادة {m})."],
   ["Good progress: {c} fell {p} versus the previous period.", "Bon progrès : {c} a baissé de {p} par rapport à la période précédente.", "تقدّم جيد: انخفضت {c} بنسبة {p} مقارنة بالفترة السابقة."], ["Your largest single expense was {m} on {c} ({d}).", "Votre plus grosse dépense unique était de {m} pour {c} ({d}).", "أكبر مصروف منفرد لديك كان {m} على {c} ({d})."],
   ["{c} is {m} over its budget. Pause or reduce this category.", "{c} dépasse son budget de {m}. Mettez cette catégorie en pause ou réduisez-la.", "{c} تجاوزت ميزانيتها بمقدار {m}. أوقفها أو قلّصها."], ["Recurring commitments take {p} of income, which limits flexibility. Review subscriptions and contracts.", "Les engagements récurrents représentent {p} des revenus, ce qui limite votre flexibilité. Passez en revue abonnements et contrats.", "الالتزامات المتكررة تستهلك {p} من الدخل مما يحدّ من مرونتك. راجع الاشتراكات والعقود."],
-  ["Your emergency fund covers {n} months of spending. Build towards 3–6 months.", "Votre fonds d’urgence couvre {n} mois de dépenses. Visez 3 à 6 mois.", "يغطي صندوق الطوارئ {n} شهراً من الإنفاق. اعمل على الوصول إلى 3–6 أشهر."], ["Your savings rate improved from {a} to {b}.", "Votre taux d’épargne est passé de {a} à {b}.", "تحسّن معدل ادخارك من {a} إلى {b}."]
+  ["Your emergency fund covers {n} months of spending. Build towards 3–6 months.", "Votre fonds d’urgence couvre {n} mois de dépenses. Visez 3 à 6 mois.", "يغطي صندوق الطوارئ {n} شهراً من الإنفاق. اعمل على الوصول إلى 3–6 أشهر."], ["Your savings rate improved from {a} to {b}.", "Votre taux d’épargne est passé de {a} à {b}.", "تحسّن معدل ادخارك من {a} إلى {b}."],
+  /* accounts */
+  ["Main account", "Compte principal", "الحساب الرئيسي"], ["Account", "Compte", "الحساب"], ["Accounts", "Comptes", "الحسابات"], ["Account name", "Nom du compte", "اسم الحساب"], ["Account type", "Type de compte", "نوع الحساب"],
+  ["Where your money is kept", "Où se trouve votre argent", "أين توجد أموالك"], ["Transfer", "Virement", "تحويل"], ["Manage →", "Gérer →", "إدارة ←"], ["Set aside in savings and goals", "Mis de côté en épargne et objectifs", "مخصص للمدخرات والأهداف"],
+  ["All accounts", "Tous les comptes", "كل الحسابات"], ["Import into account", "Importer dans le compte", "الاستيراد إلى الحساب"], ["Bank account", "Compte bancaire", "حساب بنكي"], ["Opening balance", "Solde initial", "الرصيد الافتتاحي"],
+  ["New account name", "Nom du nouveau compte", "اسم الحساب الجديد"], ["KEEP IT ORGANISED", "RESTEZ ORGANISÉ", "حافظ على التنظيم"],
+  ["Track cash, bank accounts and cards separately. Your total balance always adds them up.", "Suivez séparément espèces, comptes bancaires et cartes. Votre solde total les additionne toujours.", "تابع النقد والحسابات البنكية والبطاقات كلاً على حدة. رصيدك الإجمالي يجمعها دائماً."],
+  ["Transfer between accounts", "Virement entre comptes", "تحويل بين الحسابات"],
+  ["Transfers between accounts never change your total balance. Deleting an account moves everything in it to the first remaining account.", "Les virements entre comptes ne modifient jamais votre solde total. Supprimer un compte déplace tout son contenu vers le premier compte restant.", "التحويلات بين الحسابات لا تغيّر رصيدك الإجمالي أبداً. حذف حساب ينقل كل محتوياته إلى أول حساب متبقٍ."],
+  ["An account with that name already exists.", "Un compte portant ce nom existe déjà.", "يوجد حساب بهذا الاسم مسبقاً."], ["You can have up to 12 accounts.", "Vous pouvez avoir jusqu’à 12 comptes.", "يمكنك امتلاك 12 حساباً كحد أقصى."],
+  ["Account added.", "Compte ajouté.", "تمت إضافة الحساب."], ["Account updated.", "Compte mis à jour.", "تم تحديث الحساب."], ["You need at least one account.", "Il vous faut au moins un compte.", "تحتاج إلى حساب واحد على الأقل."],
+  ["Account deleted. Its transactions moved to another account.", "Compte supprimé. Ses transactions ont été déplacées vers un autre compte.", "تم حذف الحساب. نُقلت معاملاته إلى حساب آخر."],
+  ["Choose two accounts.", "Choisissez deux comptes.", "اختر حسابين."], ["Choose two different accounts.", "Choisissez deux comptes différents.", "اختر حسابين مختلفين."], ["Transfer saved.", "Virement enregistré.", "تم حفظ التحويل."], ["Transfer deleted.", "Virement supprimé.", "تم حذف التحويل."],
+  ["{a} → {b}", "{a} → {b}", "{a} ← {b}"], ["Total balance", "Solde total", "الرصيد الإجمالي"],
+  /* upcoming bills */
+  ["Upcoming", "À venir", "القادمة"], ["NEVER MISS A DUE DATE", "NE MANQUEZ AUCUNE ÉCHÉANCE", "لا تفوّت أي موعد استحقاق"], ["Today", "Aujourd’hui", "اليوم"], ["Tomorrow", "Demain", "غداً"],
+  ["in {n} days", "dans {n} jours", "بعد {n} أيام"], ["{n} due in the next 30 days · {m}", "{n} à régler dans les 30 prochains jours · {m}", "{n} مستحقة خلال 30 يوماً القادمة · {m}"], ["{n} payments · {m} due", "{n} paiements · {m} à régler", "{n} دفعات · {m} مستحقة"],
+  ["Nothing is due in this period.", "Rien à régler sur cette période.", "لا توجد مستحقات في هذه الفترة."], ["Show", "Afficher", "عرض"], ["Remind me", "Me rappeler", "ذكّرني"],
+  ["Next 7 days", "7 prochains jours", "الأيام السبعة القادمة"], ["Next 30 days", "30 prochains jours", "الثلاثون يوماً القادمة"], ["Next 60 days", "60 prochains jours", "الستون يوماً القادمة"], ["Next 90 days", "90 prochains jours", "التسعون يوماً القادمة"],
+  ["1 day before", "1 jour avant", "قبل يوم واحد"], ["3 days before", "3 jours avant", "قبل 3 أيام"], ["7 days before", "7 jours avant", "قبل 7 أيام"], ["14 days before", "14 jours avant", "قبل 14 يوماً"],
+  ["Recurring costs: about {m} per month", "Dépenses récurrentes : environ {m} par mois", "التكاليف المتكررة: حوالي {m} شهرياً"], ["Subscriptions: about {m} per month", "Abonnements : environ {m} par mois", "الاشتراكات: حوالي {m} شهرياً"],
+  ["Manage recurring", "Gérer les récurrents", "إدارة المتكررة"], ["Add bill or subscription", "Ajouter une facture ou un abonnement", "إضافة فاتورة أو اشتراك"],
+  ["Bills and subscriptions are recorded automatically on their due date. Highlighted dates are inside your reminder window.", "Les factures et abonnements sont enregistrés automatiquement à leur échéance. Les dates en surbrillance sont dans votre fenêtre de rappel.", "تُسجَّل الفواتير والاشتراكات تلقائياً في تاريخ استحقاقها. التواريخ المميّزة داخل نافذة التذكير."],
+  ["{n} accounts", "{n} comptes", "{n} حسابات"], ["Manage accounts", "Gérer les comptes", "إدارة الحسابات"], ["Nothing due in the next 30 days.", "Rien à régler dans les 30 prochains jours.", "لا توجد مستحقات خلال 30 يوماً القادمة."]
 ];
 const DICT = { fr: {}, ar: {} };
 TRIPLES.forEach(([en, fr, ar]) => { DICT.fr[en] = fr; DICT.ar[en] = ar; });
@@ -208,16 +237,35 @@ function translateNode(node) {
 function trHtml(html) { if (currentLang === "en") return html; const template = document.createElement("template"); template.innerHTML = html; translateNode(template.content); return template.innerHTML; }
 const languageObserver = new MutationObserver(mutations => { if (currentLang === "en") return; mutations.forEach(m => m.addedNodes.forEach(translateNode)); });
 
-function updateLangButtons() { document.querySelectorAll("[data-lang]").forEach(button => button.classList.toggle("active", button.dataset.lang === currentLang)); }
+function updateLangButtons() {
+  document.querySelectorAll("[data-lang]").forEach(button => { const on = button.dataset.lang === currentLang; button.classList.toggle("active", on); if (button.closest(".lang-list")) { if (on) button.setAttribute("aria-current", "true"); else button.removeAttribute("aria-current"); } });
+  document.querySelectorAll(".lang-code").forEach(node => { node.textContent = currentLang.toUpperCase(); });
+}
+
+/* ---- Small popover menus (language, accounts, upcoming) ---- */
+function closeMenus(except) {
+  document.querySelectorAll(".menu-wrap.open").forEach(wrap => {
+    if (wrap === except) return;
+    wrap.classList.remove("open"); const pop = wrap.querySelector(".popover"); if (pop) pop.hidden = true;
+    wrap.querySelector("[aria-haspopup]")?.setAttribute("aria-expanded", "false");
+  });
+}
+document.querySelectorAll(".menu-wrap > [aria-haspopup]").forEach(trigger => trigger.addEventListener("click", event => {
+  event.stopPropagation(); const wrap = trigger.parentElement; const open = !wrap.classList.contains("open");
+  closeMenus(); wrap.classList.toggle("open", open); trigger.setAttribute("aria-expanded", String(open)); wrap.querySelector(".popover").hidden = !open;
+}));
+document.addEventListener("click", event => { if (!event.target.closest(".menu-wrap")) closeMenus(); });
+document.addEventListener("keydown", event => { if (event.key !== "Escape") return; const open = document.querySelector(".menu-wrap.open"); if (open) { const trigger = open.querySelector("[aria-haspopup]"); closeMenus(); trigger?.focus(); } });
 function applyLanguageAttributes() {
   document.documentElement.lang = currentLang; document.documentElement.dir = currentLang === "ar" ? "rtl" : "ltr";
   document.documentElement.classList.toggle("lang-ar", currentLang === "ar");
   const pageTitle = document.title; if (!applyLanguageAttributes.base) applyLanguageAttributes.base = pageTitle;
   document.title = tr(applyLanguageAttributes.base === "Pennywise — Money, made clearer" ? "Pennywise — Money, made clearer" : "Pennywise — Personal finance tracker");
+  document.querySelectorAll("img[data-shot]").forEach(img => { img.src = `screens/${img.dataset.shot}-${currentLang}.webp`; });
   const meta = document.querySelector('meta[name="description"]'); if (meta) { if (!meta.__en) meta.__en = meta.getAttribute("content"); meta.setAttribute("content", tr(meta.__en)); }
 }
 function setLanguage(next, rerender = true) {
-  if (!LANGS.includes(next)) next = "en"; currentLang = next;
+  if (!LANGS.includes(next)) next = "en"; currentLang = next; closeMenus();
   try { localStorage.setItem("pennywise-lang", next); } catch (error) { /* private mode */ }
   applyLanguageAttributes(); translateNode(document.body); updateLangButtons();
   if (typeof today !== "undefined" && document.querySelector("#todayLabel")) document.querySelector("#todayLabel").textContent = today.toLocaleDateString(locale(), { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();

@@ -19,7 +19,9 @@ function syncCategories() {
   [...c.income, ...c.expense].forEach(x => { categoryColors[x.name] = x.color; icons[x.name] = x.icon; });
 }
 const iconMarkup = name => typeof pennywiseIcon === "function" ? pennywiseIcon(name) : "";
-const seed = { transactions: [], transfers: [], goals: [], pots: [], budgets: [], categories: defaultCategories, monthlyLimit: 0, onboarded: false, rule: { amount: 20, type: "percent" }, settings: { name: "", currency: "MAD", language: "en", lastBackup: null } };
+const accountKinds = ["bank", "cash", "card", "other"];
+const defaultAccounts = () => [{ id: "main", name: "Main account", kind: "bank", opening: 0 }];
+const seed = { transactions: [], transfers: [], accounts: defaultAccounts(), accountTransfers: [], goals: [], pots: [], budgets: [], categories: defaultCategories, monthlyLimit: 0, onboarded: false, rule: { amount: 20, type: "percent" }, settings: { name: "", currency: "MAD", language: "en", lastBackup: null, reminderDays: 3 } };
 const storageVersion = 3;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -85,6 +87,7 @@ const toast = (message, type, options = {}) => {
   if (options.undo) { const button = document.createElement("button"); button.type = "button"; button.className = "toast-undo"; button.textContent = tr("Undo"); button.onclick = () => { undoLast(); }; node.appendChild(button); }
   clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("show"), options.undo ? 8000 : isError ? 4200 : 2800);
 };
+const emptyState = (icon, title, hint, action) => `<div class="empty-state"><span class="empty-icon">${iconMarkup(icon)}</span><strong>${h(tr(title))}</strong>${hint ? `<p>${h(tr(hint))}</p>` : ""}${action ? `<button type="button" class="secondary-btn" data-empty-action="${action[0]}">${h(tr(action[1]))}</button>` : ""}</div>`;
 const undoStack = [];
 function pushUndo() { undoStack.push(JSON.stringify(data)); if (undoStack.length > 20) undoStack.shift(); }
 function undoLast() {
@@ -226,8 +229,12 @@ function lockApp() {
 
 function cleanData(input) {
   const source = input && typeof input === "object" ? input : {};
+  const seenAccounts = new Set();
+  let accounts = (Array.isArray(source.accounts) ? source.accounts : []).map((a, i) => ({ id: String(a?.id ?? `account-legacy-${i}`).slice(0, 60), name: String(a?.name || "").trim().slice(0, 40) || "Account", kind: accountKinds.includes(a?.kind) ? a.kind : "bank", opening: number(a?.opening) })).filter(a => !seenAccounts.has(a.id) && seenAccounts.add(a.id));
+  if (!accounts.length) accounts = defaultAccounts();
+  const accountIds = new Set(accounts.map(a => a.id));
   const cleanTransactions = Array.isArray(source.transactions) ? source.transactions.map((t, index) => ({
-    id: t.id ?? `legacy-${index}-${Date.now()}`, type: t.type === "income" ? "income" : "expense",
+    id: t.id ?? `legacy-${index}-${Date.now()}`, account: accountIds.has(t.account) ? t.account : accounts[0].id, type: t.type === "income" ? "income" : "expense",
     amount: number(t.amount), date: /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : dateKey(today),
     category: String(t.category || "Other").slice(0, 80), payment: String(t.payment || "Cash").slice(0, 50),
     frequency: ["One-time", "Monthly", "Weekly"].includes(t.frequency) ? t.frequency : "One-time",
@@ -245,14 +252,15 @@ function cleanData(input) {
   const ensureCategory = (kind, name) => { if (!categories[kind].some(c => c.name === name)) categories[kind].push({ name, color: categoryPalette[categories[kind].length % categoryPalette.length], icon: "overview" }); };
   cleanTransactions.forEach(t => ensureCategory(t.type, t.category));
   return {
-    ...seed, ...source, transactions: cleanTransactions,
+    ...seed, ...source, transactions: cleanTransactions, accounts,
+    accountTransfers: (Array.isArray(source.accountTransfers) ? source.accountTransfers : []).map((t, i) => ({ id: String(t?.id ?? `account-transfer-${i}`), from: t?.from, to: t?.to, amount: number(t?.amount), date: /^\d{4}-\d{2}-\d{2}$/.test(t?.date) ? t.date : dateKey(today), note: String(t?.note || "").slice(0, 120) })).filter(t => t.amount > 0 && t.from !== t.to && accountIds.has(t.from) && accountIds.has(t.to)),
     transfers: Array.isArray(source.transfers) ? source.transfers.map((t, i) => ({ id: t.id ?? `transfer-legacy-${i}`, amount: number(t.amount), date: t.date || dateKey(today), destination: String(t.destination || ""), automatic: Boolean(t.automatic) })).filter(t => t.amount !== 0) : [],
     goals: Array.isArray(source.goals) ? source.goals.map((g, i) => ({ id: g.id ?? `goal-legacy-${i}`, name: String(g.name || "Goal").slice(0, 80), target: Math.max(1, number(g.target)), saved: Math.max(0, number(g.saved)), deadline: g.deadline || dateKey(today), created: g.created || dateKey(today) })) : [],
     pots: Array.isArray(source.pots) ? source.pots.map((p, i) => ({ id: p.id ?? `pot-legacy-${i}`, name: String(p.name || "Savings pot").slice(0, 80), target: Math.max(1, number(p.target)), saved: Math.max(0, number(p.saved)), color: ["teal", "coral", "purple", "yellow"].includes(p.color) ? p.color : "teal" })) : [],
     budgets: Array.isArray(source.budgets) ? source.budgets.map(b => ({ category: String(b.category || "Other"), amount: number(b.amount) })).filter(b => b.amount > 0).map(b => { ensureCategory("expense", b.category); return b; }) : [],
     categories, monthlyLimit: Math.max(0, number(source.monthlyLimit)), onboarded: Boolean(source.onboarded),
     rule: { amount: Math.max(1, number(source.rule?.amount) || 20), type: ["fixed", "off"].includes(source.rule?.type) ? source.rule.type : "percent" },
-    settings: { ...seed.settings, ...(source.settings || {}), language: ["en", "fr", "ar"].includes(source.settings?.language) ? source.settings.language : "en", currency: ["MAD", "EUR", "USD", "GBP"].includes(source.settings?.currency) ? source.settings.currency : "MAD", lastBackup: source.settings?.lastBackup || null }
+    settings: { ...seed.settings, ...(source.settings || {}), language: ["en", "fr", "ar"].includes(source.settings?.language) ? source.settings.language : "en", currency: ["MAD", "EUR", "USD", "GBP"].includes(source.settings?.currency) ? source.settings.currency : "MAD", lastBackup: source.settings?.lastBackup || null, reminderDays: [1, 3, 7, 14].includes(Number(source.settings?.reminderDays)) ? Number(source.settings.reminderDays) : 3 }
   };
 }
 
@@ -266,7 +274,14 @@ const thisMonth = transaction => transaction.date.startsWith(monthKey);
 const startOfWeek = value => { const date = new Date(value); const day = date.getDay(); date.setDate(date.getDate() - (day === 0 ? 6 : day - 1)); date.setHours(0, 0, 0, 0); return date; };
 const periodDates = period => period === "week" ? [startOfWeek(anchorDate()), new Date(startOfWeek(anchorDate()).getTime() + 6 * 86400000)] : [new Date(viewDate.getFullYear(), viewDate.getMonth(), 1), new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0)];
 const periodTransactions = period => { const [start, end] = periodDates(period); end.setHours(23, 59, 59, 999); return data.transactions.filter(t => { const date = dateAtNoon(t.date); return date >= start && date <= end; }); };
-const allBalance = () => data.transactions.reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.reduce((sum, t) => sum + t.amount, 0);
+const openingTotal = () => data.accounts.reduce((sum, a) => sum + a.opening, 0);
+const allBalance = () => openingTotal() + data.transactions.reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.reduce((sum, t) => sum + t.amount, 0);
+const accountBalance = id => {
+  const account = data.accounts.find(a => a.id === id);
+  return (account ? account.opening : 0) + data.transactions.filter(t => t.account === id).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0)
+    + data.accountTransfers.reduce((sum, t) => sum + (t.to === id ? t.amount : 0) - (t.from === id ? t.amount : 0), 0);
+};
+const accountLabel = id => { const account = data.accounts.find(a => a.id === id); return account ? tr(account.name) : tr("Deleted"); };
 const totals = transactions => ({ income: transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0), expense: transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0) });
 const previousMonthTransactions = () => { const date = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1); const key = dateKey(date).slice(0, 7); return data.transactions.filter(t => t.date.startsWith(key)); };
 const percentChange = (current, previous) => previous ? Math.round((current - previous) / previous * 100) : (current ? 100 : 0);
@@ -353,7 +368,7 @@ function render() {
   $("#incomeMeta").innerHTML = previous.income ? `${percentChange(current.income, previous.income) >= 0 ? "↑" : "↓"} ${Math.abs(percentChange(current.income, previous.income))}% <span>vs last month</span>` : "<span>No data last month</span>";
   $("#expenseMeta").innerHTML = previous.expense ? `${percentChange(current.expense, previous.expense) >= 0 ? "↑" : "↓"} ${Math.abs(percentChange(current.expense, previous.expense))}% <span>vs last month</span>` : "<span>No data last month</span>";
   const barMax = Math.max(1, current.income, current.expense); $("#incomeBar").style.width = `${current.income / barMax * 100}%`; $("#expenseBar").style.width = `${current.expense / barMax * 100}%`;
-  renderBalanceTrend(); const hour = new Date().getHours(); const greeting = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"; $("#greeting").textContent = data.settings.name ? tr("{g}, {n}", { g: tr(greeting), n: data.settings.name.split(/\s+/)[0] }) : tr(greeting); renderBackupNotice(); renderMonthNav(); renderBudgetAlerts();
+  renderBalanceTrend(); const hour = new Date().getHours(); const greeting = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"; $("#greeting").textContent = data.settings.name ? tr("{g}, {n}", { g: tr(greeting), n: data.settings.name.split(/\s+/)[0] }) : tr(greeting); renderBackupNotice(); renderMonthNav(); renderBudgetAlerts(); 
   $(".progress-ring").style.background = `conic-gradient(var(--teal) ${Math.max(0, Math.min(100, rate))}%, var(--track) 0)`;
   renderChart(); renderCategories(); renderTransactions(); renderGoals(); renderPots(); renderReports(); renderFormOptions();
   if (typeof renderExtras === "function") renderExtras();
@@ -361,7 +376,7 @@ function render() {
 
 function renderBalanceTrend() {
   const days = 30; const points = []; const monthEnd = new Date(viewDate.getFullYear(), viewDate.getMonth(), 0, 23, 59, 59); const endDay = isCurrentMonth() ? new Date(today) : new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-  const balanceAt = end => data.transactions.filter(t => dateAtNoon(t.date) <= end).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.filter(t => dateAtNoon(t.date) <= end).reduce((sum, t) => sum + t.amount, 0);
+  const balanceAt = end => openingTotal() + data.transactions.filter(t => dateAtNoon(t.date) <= end).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.filter(t => dateAtNoon(t.date) <= end).reduce((sum, t) => sum + t.amount, 0);
   for (let i = days - 1; i >= 0; i -= 1) { const d = new Date(endDay); d.setDate(d.getDate() - i); d.setHours(23, 59, 59); points.push(balanceAt(d)); }
   const min = Math.min(...points), max = Math.max(...points), span = max - min || 1;
   $("#balanceSparkline").setAttribute("d", points.map((v, i) => `${i ? "L" : "M"}${(i / (days - 1) * 240).toFixed(1)} ${(48 - (v - min) / span * 40).toFixed(1)}`).join(" "));
@@ -386,8 +401,15 @@ function renderBackupNotice() {
 function renderChart() {
   const svg = $("#cashflowChart"); const period = $("#cashflowPeriod")?.value || "month"; const [start, end] = periodDates(period); const days = Math.round((end - start) / 86400000) + 1; const income = Array(days).fill(0); const expense = Array(days).fill(0);
   periodTransactions(period).forEach(t => { const index = Math.floor((dateAtNoon(t.date) - start) / 86400000); if (index >= 0 && index < days) (t.type === "income" ? income : expense)[index] += t.amount; });
-  const max = Math.max(1, ...income, ...expense); const points = values => values.map((value, index) => `${index / Math.max(1, days - 1) * 680 + 10},${215 - value / max * 185}`).join(" ");
-  svg.innerHTML = `<line x1="10" y1="215" x2="690" y2="215" stroke="#e9ede8"/><line x1="10" y1="155" x2="690" y2="155" stroke="#eef1ec"/><line x1="10" y1="95" x2="690" y2="95" stroke="#eef1ec"/><line x1="10" y1="35" x2="690" y2="35" stroke="#eef1ec"/><polyline points="${points(income)}" fill="none" stroke="#167d72" stroke-width="3" stroke-linecap="round"/><polyline points="${points(expense)}" fill="none" stroke="#ee785e" stroke-width="3" stroke-linecap="round"/>`;
+  const max = Math.max(1, ...income, ...expense); const hasData = income.some(v => v) || expense.some(v => v);
+  const W = 700, H = 230, L = 8, R = 8, T = 14, B = 8, pw = W - L - R, ph = H - T - B, slot = pw / days, bw = Math.max(2, Math.min(13, slot * 0.34));
+  let out = [0, 0.25, 0.5, 0.75, 1].map(p => `<line class="cf-grid" x1="${L}" x2="${W - R}" y1="${(T + ph * (1 - p)).toFixed(1)}" y2="${(T + ph * (1 - p)).toFixed(1)}"/>`).join("");
+  for (let i = 0; i < days; i += 1) {
+    const cx = L + slot * (i + 0.5), label = new Date(start.getTime() + i * 86400000).toLocaleDateString(locale(), { month: "short", day: "numeric" });
+    if (income[i]) out += `<rect class="cf-income" x="${(cx - bw - 0.5).toFixed(1)}" y="${(T + ph - income[i] / max * ph).toFixed(1)}" width="${bw.toFixed(1)}" height="${(income[i] / max * ph).toFixed(1)}" rx="3"><title>${h(label)} · ${h(money(income[i]))}</title></rect>`;
+    if (expense[i]) out += `<rect class="cf-expense" x="${(cx + 0.5).toFixed(1)}" y="${(T + ph - expense[i] / max * ph).toFixed(1)}" width="${bw.toFixed(1)}" height="${(expense[i] / max * ph).toFixed(1)}" rx="3"><title>${h(label)} · ${h(money(expense[i]))}</title></rect>`;
+  }
+  svg.innerHTML = out; if ($("#chartEmpty")) $("#chartEmpty").hidden = hasData;
   $$(".chart-labels span").forEach((label, index) => { const date = new Date(start.getTime() + Math.round(index * (days - 1) / 6) * 86400000); label.textContent = date.toLocaleDateString(locale(), { month: "short", day: "numeric" }); });
 }
 function renderCategories() {
@@ -401,24 +423,24 @@ function transactionMarkup(t, table = false) {
   const tagHtml = (t.tags || []).map(tag => `<span class="tag">#${h(tag)}</span>`).join("");
   const note = h(t.notes || tr(t.payment)); const label = h(t.category); const amount = `<bdi dir="ltr">${h((t.type === "income" ? "+" : "−") + money(t.amount))}</bdi>`;
   const categoryIcon = iconMarkup(icons[t.category] || "overview"); const dateText = dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" });
-  const badges = `${t.splitId ? '<span class="badge">Split</span>' : ""}${t.generated ? '<span class="badge">Auto</span>' : ""}`;
-  return table ? `<div class="table-row"><div><strong class="table-category-icon">${categoryIcon}${label}</strong><small>${note}${tagHtml}</small></div><span>${dateText}</span><span class="badge-group"><span class="badge">${h(t.frequency)}</span>${badges}</span><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`
-    : `<div class="transaction-item"><div class="transaction-icon ${t.type}">${categoryIcon}</div><div class="transaction-info"><strong>${label}</strong><small>${note} · ${dateText}${tagHtml}</small></div><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`;
+  const badges = `${data.accounts.length > 1 ? `<span class="badge">${h(accountLabel(t.account))}</span>` : ""}${t.splitId ? '<span class="badge">Split</span>' : ""}${t.generated ? '<span class="badge">Auto</span>' : ""}`;
+  return table ? `<div class="table-row"><div><strong class="table-category-icon" style="--cat:${h(categoryColors[t.category] || "#b7c4bd")}">${categoryIcon}${label}</strong><small>${note}${tagHtml}</small></div><span>${dateText}</span><span class="badge-group"><span class="badge">${h(t.frequency)}</span>${badges}</span><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`
+    : `<div class="transaction-item"><div class="transaction-icon ${t.type}" style="--cat:${h(categoryColors[t.category] || "#b7c4bd")}">${categoryIcon}</div><div class="transaction-info"><strong>${label}</strong><small>${note} · ${dateText}${tagHtml}</small></div><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`;
 }
 function renderTransactions() {
   const fill = (selector, items) => { const el = $(selector); if (!el) return; const old = el.value; el.innerHTML = `<option value="">${selector === "#filterTag" ? "All tags" : "All categories"}</option>` + items.map(x => `<option value="${h(x)}">${h(x)}</option>`).join(""); el.value = items.includes(old) ? old : ""; };
   fill("#filterCategory", [...new Set([...expenseCategories, ...incomeCategories])].sort((a, b) => a.localeCompare(b)));
   fill("#filterTag", [...new Set(data.transactions.flatMap(t => t.tags || []))].sort((a, b) => a.localeCompare(b)));
   const sort = $("#transactionSort")?.value || "newest"; const sorters = { newest: (a, b) => b.date.localeCompare(a.date), oldest: (a, b) => a.date.localeCompare(b.date), largest: (a, b) => b.amount - a.amount, smallest: (a, b) => a.amount - b.amount };
-  const search = ($("#transactionSearch")?.value || "").toLowerCase().trim(); const from = $("#filterFrom")?.value || "", to = $("#filterTo")?.value || ""; const cat = $("#filterCategory")?.value || "", tag = $("#filterTag")?.value || "";
+  const search = ($("#transactionSearch")?.value || "").toLowerCase().trim(); const from = $("#filterFrom")?.value || "", to = $("#filterTo")?.value || ""; const cat = $("#filterCategory")?.value || "", tag = $("#filterTag")?.value || "", acct = $("#filterAccount")?.value || "";
   const all = [...data.transactions].sort(sorters[sort] || sorters.newest);
-  const list = all.filter(t => (currentFilter === "all" || t.type === currentFilter) && `${t.category} ${tr(t.category)} ${t.notes} ${(t.tags || []).join(" ")}`.toLowerCase().includes(search) && (!from || t.date >= from) && (!to || t.date <= to) && (!cat || t.category === cat) && (!tag || (t.tags || []).includes(tag)));
+  const list = all.filter(t => (currentFilter === "all" || t.type === currentFilter) && `${t.category} ${tr(t.category)} ${t.notes} ${(t.tags || []).join(" ")}`.toLowerCase().includes(search) && (!from || t.date >= from) && (!to || t.date <= to) && (!cat || t.category === cat) && (!acct || t.account === acct) && (!tag || (t.tags || []).includes(tag)));
   const recent = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-  $("#recentTransactions").innerHTML = recent.map(t => transactionMarkup(t)).join("") || '<p class="muted">No transactions yet.</p>';
-  $("#transactionTable").innerHTML = list.slice(0, transactionLimit).map(t => transactionMarkup(t, true)).join("") || '<p class="muted">No transactions match.</p>';
+  $("#recentTransactions").innerHTML = recent.map(t => transactionMarkup(t)).join("") || emptyState("transactions", "No transactions yet.", "Add your first income or expense to see your money come to life.", ["transaction", "Add transaction"]);
+  $("#transactionTable").innerHTML = list.slice(0, transactionLimit).map(t => transactionMarkup(t, true)).join("") || emptyState("search", "No transactions match.", "Try changing your search or filters.");
   $("#showMoreTransactions").hidden = list.length <= transactionLimit; $("#showMoreTransactions").textContent = tr("Show more ({n} remaining)", { n: list.length - transactionLimit });
   $("#transactionCount").textContent = tr(list.length === 1 ? "{n} transaction" : "{n} transactions", { n: list.length });
-  if ($("#clearFilters")) $("#clearFilters").hidden = !(from || to || cat || tag || search);
+  if ($("#clearFilters")) $("#clearFilters").hidden = !(from || to || cat || tag || acct || search);
 }
 function goalStatus(goal) {
   const remaining = Math.max(0, goal.target - goal.saved); const days = Math.max(0, Math.ceil((dateAtNoon(goal.deadline) - today) / 86400000)); const weekly = remaining / Math.max(1, Math.ceil(days / 7));
@@ -426,28 +448,52 @@ function goalStatus(goal) {
   return { remaining, days, weekly, status: remaining === 0 ? "Complete" : days === 0 ? "Past due" : goal.saved / goal.target >= elapsed * 0.9 ? "On track" : "Catch up" };
 }
 function renderGoals() {
-  const goalHtml = goal => { const pct = Math.min(100, Math.round(goal.saved / goal.target * 100)); const status = goalStatus(goal); return `<div class="goal-card"><div class="goal-symbol">${iconMarkup("goals")}</div><h2>${h(goal.name)}</h2><div class="goal-date">${h(tr("Target · {d}", { d: dateAtNoon(goal.deadline).toLocaleDateString(locale(), { month: "long", day: "numeric", year: "numeric" }) }))}</div><div class="goal-amounts"><strong>${money(goal.saved)}</strong><span>${h(tr("of {m}", { m: money(goal.target) }))}</span></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-foot"><span>${h(tr("{p}% complete · {s}", { p: pct, s: tr(status.status) }))}</span><span class="${status.status === "Catch up" || status.status === "Past due" ? "behind" : ""}">${status.remaining ? h(tr("{m}/week", { m: money(status.weekly) })) : h(tr("Done"))}</span></div><div class="card-actions"><button class="text-btn transfer-btn" data-destination="goal:${h(goal.id)}">${iconMarkup("plus")} Move money</button><button class="text-btn delete-goal" data-id="${h(goal.id)}">Delete</button></div></div>`; };
-  $("#goalsGrid").innerHTML = data.goals.map(goalHtml).join("") || '<p class="muted">No goals yet. Add one to give your savings a direction.</p>';
-  $("#goalsPreview").innerHTML = data.goals.slice(0, 2).map(goal => `<div class="goal-row"><div class="goal-row-head"><strong>${h(goal.name)}</strong><span>${Math.min(100, Math.round(goal.saved / goal.target * 100))}% · ${h(tr(goalStatus(goal).status))}</span></div><div class="progress"><span style="width:${Math.min(100, goal.saved / goal.target * 100)}%"></span></div></div>`).join("") || '<p class="muted">No goals yet.</p>';
+  const goalHtml = goal => { const pct = Math.min(100, Math.round(goal.saved / goal.target * 100)); const status = goalStatus(goal); return `<div class="goal-card${pct >= 100 ? " complete" : ""}" style="--pct:${pct}"><div class="goal-symbol">${iconMarkup(pct >= 100 ? "shield" : "goals")}</div>${pct >= 100 ? `<span class="goal-badge">${h(tr("Goal reached!"))}</span>` : ""}<h2>${h(goal.name)}</h2><div class="goal-date">${h(tr("Target · {d}", { d: dateAtNoon(goal.deadline).toLocaleDateString(locale(), { month: "long", day: "numeric", year: "numeric" }) }))}</div><div class="goal-amounts"><strong>${money(goal.saved)}</strong><span>${h(tr("of {m}", { m: money(goal.target) }))}</span></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-foot"><span>${h(tr("{p}% complete · {s}", { p: pct, s: tr(status.status) }))}</span><span class="${status.status === "Catch up" || status.status === "Past due" ? "behind" : ""}">${status.remaining ? h(tr("{m}/week", { m: money(status.weekly) })) : h(tr("Done"))}</span></div><div class="card-actions"><button class="text-btn transfer-btn" data-destination="goal:${h(goal.id)}">${iconMarkup("plus")} Move money</button><button class="text-btn delete-goal" data-id="${h(goal.id)}">Delete</button></div></div>`; };
+  $("#goalsGrid").innerHTML = data.goals.map(goalHtml).join("") || emptyState("goals", "No goals yet.", "Add one to give your savings a direction.", ["goal", "New goal"]);
+  $("#goalsPreview").innerHTML = data.goals.slice(0, 2).map(goal => `<div class="goal-row"><div class="goal-row-head"><strong>${h(goal.name)}</strong><span>${Math.min(100, Math.round(goal.saved / goal.target * 100))}% · ${h(tr(goalStatus(goal).status))}</span></div><div class="progress"><span style="width:${Math.min(100, goal.saved / goal.target * 100)}%"></span></div></div>`).join("") || emptyState("goals", "No goals yet.", null, ["goal", "New goal"]);
 }
 function renderPots() {
   const saved = data.pots.reduce((sum, pot) => sum + pot.saved, 0); const target = data.pots.reduce((sum, pot) => sum + pot.target, 0); const emergency = data.pots.find(pot => pot.name.toLowerCase().includes("emergency")); const recommendation = emergencyRecommendation();
   $("#savedTotal").textContent = money(saved); $("#savingsRing span").textContent = `${target ? Math.min(100, Math.round(saved / target * 100)) : 0}%`;
   $("#emergencyProgress").textContent = emergency ? `${money(emergency.saved)} / ${money(emergency.target || recommendation)}` : tr("Recommended: {m}", { m: money(recommendation) });
-  $("#potsGrid").innerHTML = data.pots.map(pot => { const pct = Math.min(100, Math.round(pot.saved / pot.target * 100)); const color = pot.color === "coral" ? "var(--coral)" : pot.color === "purple" ? "var(--purple)" : pot.color === "yellow" ? "var(--yellow)" : "var(--teal)"; return `<div class="pot-card"><div class="pot-head"><span class="pot-icon ${h(pot.color)}">◎</span><span class="muted">${pct}%</span></div><h3>${h(pot.name)}</h3><div class="pot-amount">${money(pot.saved)} <span>${h(tr("of {m}", { m: money(pot.target) }))}</span></div><div class="progress"><span style="width:${pct}%;background:${color}"></span></div><div class="pot-footer"><span>Progress</span><strong>${h(tr("{m} to go", { m: money(Math.max(0, pot.target - pot.saved)) }))}</strong></div><div class="pot-actions"><button class="text-btn transfer-btn" data-destination="pot:${h(pot.id)}">＋ Move money</button><button class="text-btn delete-pot" data-id="${h(pot.id)}">Delete</button></div></div>`; }).join("") || '<p class="muted">No savings pots yet. Create your first one above.</p>';
+  $("#potsGrid").innerHTML = data.pots.map(pot => { const pct = Math.min(100, Math.round(pot.saved / pot.target * 100)); const color = pot.color === "coral" ? "var(--coral)" : pot.color === "purple" ? "var(--purple)" : pot.color === "yellow" ? "var(--yellow)" : "var(--teal)"; return `<div class="pot-card${pct >= 100 ? " full" : ""}" style="--c:${color};--pct:${pct}"><div class="pot-head"><span class="pot-icon ${h(pot.color)}">${iconMarkup("savings")}</span><span class="mini-ring" style="--pct:${pct}"><b>${pct}%</b></span></div><h3>${h(pot.name)}</h3><div class="pot-amount">${money(pot.saved)} <span>${h(tr("of {m}", { m: money(pot.target) }))}</span></div><div class="progress"><span style="width:${pct}%"></span></div><div class="pot-footer"><span>Progress</span><strong>${h(tr("{m} to go", { m: money(Math.max(0, pot.target - pot.saved)) }))}</strong></div><div class="pot-actions"><button class="text-btn transfer-btn" data-destination="pot:${h(pot.id)}">＋ Move money</button><button class="text-btn delete-pot" data-id="${h(pot.id)}">Delete</button></div></div>`; }).join("") || emptyState("savings", "No savings pots yet.", "Create your first one to start setting money aside.", ["pot", "New pot"]);
   const spent = {}; data.transactions.filter(t => t.type === "expense" && thisMonth(t)).forEach(t => { spent[t.category] = (spent[t.category] || 0) + t.amount; });
-  $("#budgetGrid").innerHTML = data.budgets.map(budget => { const used = spent[budget.category] || 0; const pct = Math.round(used / budget.amount * 100); return `<div class="budget-card"><div class="goal-row-head"><strong>${h(budget.category)}</strong><span>${money(used)} / ${money(budget.amount)}</span></div><div class="progress"><span style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? "var(--coral)" : "var(--teal)"}"></span></div><small class="muted">${h(tr("{p}% used", { p: pct }))}${pct >= 80 ? " · " + h(tr(pct >= 100 ? "Over budget" : "Warning: near limit")) : ""}</small> <button class="text-btn delete-budget" data-category="${h(budget.category)}">Delete</button></div>`; }).join("") || '<p class="muted">No budgets set yet.</p>';
+  $("#budgetGrid").innerHTML = data.budgets.map(budget => { const used = spent[budget.category] || 0; const pct = Math.round(used / budget.amount * 100); return `<div class="budget-card ${pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok"}"><div class="goal-row-head"><strong>${h(budget.category)}</strong><span>${money(used)} / ${money(budget.amount)}</span></div><div class="progress"><span style="width:${Math.min(100, pct)}%"></span></div><small class="muted">${h(tr("{p}% used", { p: pct }))}${pct >= 80 ? " · " + h(tr(pct >= 100 ? "Over budget" : "Warning: near limit")) : ""}</small> <button class="text-btn delete-budget" data-category="${h(budget.category)}">Delete</button></div>`; }).join("") || emptyState("reports", "No budgets set yet.", "Set a monthly limit for a category to stay ahead of your spending.", ["budget", "Set budget"]);
   const food = spent.Food || 0; $("#savingAdvice").textContent = recommendation ? tr("A 3-month emergency fund would be about {m}.", { m: money(recommendation) }) : "Your emergency recommendation will appear after you record expenses.";
   $("#savingAdviceBody").textContent = food ? tr("Food is {m} this month. Review your largest categories weekly and redirect the savings to your emergency fund.", { m: money(food) }) : "Add expenses to get a recommendation based on your real spending.";
 }
 
-function renderFormOptions() { const select = $("#category"); if (select) { const old = select.value; select.innerHTML = (currentType === "income" ? incomeCategories : expenseCategories).map(category => `<option value="${h(category)}">${h(category)}</option>`).join(""); if (old && [...select.options].some(o => o.value === old)) select.value = old; } }
-function openModal(selector) { $(selector).classList.add("open"); }
-function closeModals() { $$(".modal-backdrop").forEach(modal => modal.classList.remove("open")); }
+function renderFormOptions() {
+  const account = $("#account"); if (account) { const old = account.value; account.innerHTML = data.accounts.map(a => `<option value="${h(a.id)}">${h(tr(a.name))}</option>`).join(""); account.value = data.accounts.some(a => a.id === old) ? old : data.accounts[0].id; $("#accountLabel").hidden = data.accounts.length < 2; }
+  const select = $("#category"); if (select) { const old = select.value; select.innerHTML = (currentType === "income" ? incomeCategories : expenseCategories).map(category => `<option value="${h(category)}">${h(category)}</option>`).join(""); if (old && [...select.options].some(o => o.value === old)) select.value = old; } }
+let modalOpener = null;
+const modalFocusable = box => [...box.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter(el => !el.closest("[hidden]"));
+function openModal(selector) {
+  closeMenus();
+  const backdrop = $(selector); if (!$(".modal-backdrop.open")) modalOpener = document.activeElement;
+  backdrop.classList.add("open"); backdrop.querySelector(".modal")?.focus({ preventScroll: true });
+}
+function closeModals() {
+  $$(".modal-backdrop").forEach(modal => modal.classList.remove("open"));
+  if (modalOpener && modalOpener.isConnected) modalOpener.focus({ preventScroll: true });
+  modalOpener = null;
+}
+$$(".modal").forEach((box, index) => {
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.tabIndex = -1;
+  const title = box.querySelector("h2"); if (title) { title.id = title.id || `modalTitle${index}`; box.setAttribute("aria-labelledby", title.id); }
+});
+document.addEventListener("keydown", event => {
+  if (event.key !== "Tab") return;
+  const box = $(".modal-backdrop.open .modal"); if (!box) return;
+  const items = modalFocusable(box); if (!items.length) { event.preventDefault(); return; }
+  const first = items[0], last = items[items.length - 1], active = document.activeElement, outside = !box.contains(active);
+  if (event.shiftKey) { if (outside || active === first || active === box) { event.preventDefault(); last.focus(); } }
+  else if (outside || active === last) { event.preventDefault(); first.focus(); }
+});
 function setTransactionType(type) { currentType = type; if (typeof updateSplitAvailability === "function") setTimeout(updateSplitAvailability, 0); $$("#transactionModal .type-toggle button").forEach(item => item.classList.toggle("active", item.dataset.type === type)); renderFormOptions(); }
 function startTransaction() { editingTransactionId = null; $("#transactionForm").reset(); if (typeof resetSplit === "function") resetSplit(); setTransactionType("expense"); $("#transactionForm button[type=submit]").textContent = "Add transaction"; $("#date").value = dateKey(today); openModal("#transactionModal"); $("#amount").focus(); }
 
-$$(".nav-item").forEach(button => button.addEventListener("click", () => { $$(".nav-item").forEach(item => item.classList.remove("active")); button.classList.add("active"); $$(".view").forEach(view => view.classList.remove("active")); $(`#${button.dataset.view}View`).classList.add("active"); $(".sidebar")?.classList.remove("mobile-menu-open"); $("#mobileMenuBtn")?.setAttribute("aria-expanded", "false"); }));
+$$(".nav-item").forEach(button => button.addEventListener("click", () => { $$(".nav-item").forEach(item => { item.classList.remove("active"); item.removeAttribute("aria-current"); }); $$(".nav-item").filter(item => item.dataset.view === button.dataset.view).forEach(item => item.setAttribute("aria-current", "page")); button.classList.add("active"); $$(".view").forEach(view => view.classList.remove("active")); $(`#${button.dataset.view}View`).classList.add("active"); $(".sidebar")?.classList.remove("mobile-menu-open"); $("#mobileMenuBtn")?.setAttribute("aria-expanded", "false"); }));
 $$("[data-view-target]").forEach(button => button.addEventListener("click", () => $(`[data-view="${button.dataset.viewTarget}"]`).click()));
 $("#addTransactionBtn").onclick = startTransaction; $("#addTransactionBtn2").onclick = startTransaction; $("#addGoalBtn").onclick = () => openModal("#goalModal"); $("#addPotBtn").onclick = () => openModal("#potModal"); $("#editRuleBtn").onclick = () => { $("#ruleAmount").value = data.rule.amount; $("#ruleType").value = data.rule.type; openModal("#ruleModal"); };
 const openProfile = () => { $("#profileName").value = data.settings.name; $("#profileDisplayName").textContent = data.settings.name || "Your profile"; $("#currencySelect").value = data.settings.currency; const last = data.settings.lastBackup; $("#backupStatus").textContent = last ? tr("Last backup: {w}.", { w: new Date(last).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" }) }) : tr("No backup yet. Export one so you can restore your data later."); $("#languageSelect").value = lang(); $("#themeSelect").value = currentTheme(); openModal("#settingsModal"); };
@@ -456,7 +502,7 @@ $("#mobileMenuBtn").onclick = () => { const sidebar = $(".sidebar"); const butto
 $("#addBudgetBtn").onclick = () => { $("#budgetCategory").innerHTML = expenseCategories.map(category => `<option value="${h(category)}">${h(category)}</option>`).join(""); openModal("#budgetModal"); }; $("#cashflowPeriod").onchange = renderChart; $("#monthPrev").onclick = () => setViewMonth(-1); $("#monthNext").onclick = () => setViewMonth(1);
 document.addEventListener("click", event => {
   const transfer = event.target.closest(".transfer-btn"); if (transfer) { $("#transferDestination").innerHTML = [...data.goals.map(g => `<option value="goal:${h(g.id)}">${h(tr("Goal: {n}", { n: g.name }))}</option>`), ...data.pots.map(p => `<option value="pot:${h(p.id)}">${h(tr("Savings pot: {n}", { n: p.name }))}</option>`)].join(""); $("#transferDestination").value = transfer.dataset.destination; $("#transferAmount").value = ""; $("#transferDirection").value = "add"; openModal("#transferModal"); }
-  const edit = event.target.closest(".edit-transaction"); if (edit) { const transaction = data.transactions.find(item => String(item.id) === edit.dataset.id); if (!transaction) return; editingTransactionId = transaction.id; setTransactionType(transaction.type); ["amount", "date", "category", "payment", "frequency", "notes"].forEach(id => { $(`#${id}`).value = transaction[id] || ""; }); $("#tags").value = (transaction.tags || []).join(", "); if (typeof setSplitVisible === "function") setSplitVisible(false); $("#transactionForm button[type=submit]").textContent = "Save changes"; openModal("#transactionModal"); }
+  const edit = event.target.closest(".edit-transaction"); if (edit) { const transaction = data.transactions.find(item => String(item.id) === edit.dataset.id); if (!transaction) return; editingTransactionId = transaction.id; setTransactionType(transaction.type); ["amount", "date", "category", "account", "payment", "frequency", "notes"].forEach(id => { $(`#${id}`).value = transaction[id] || ""; }); $("#tags").value = (transaction.tags || []).join(", "); if (typeof setSplitVisible === "function") setSplitVisible(false); $("#transactionForm button[type=submit]").textContent = "Save changes"; openModal("#transactionModal"); }
   const remove = event.target.closest(".delete-transaction"); if (remove) { pushUndo(); removeAutoTransfer(remove.dataset.id); data.transactions = data.transactions.filter(item => String(item.id) !== remove.dataset.id); save(); render(); toast("Transaction deleted.", "success", { undo: true }); }
   const goal = event.target.closest(".delete-goal"); if (goal) { pushUndo(); data.transfers = data.transfers.filter(t => t.destination !== `goal:${goal.dataset.id}`); data.goals = data.goals.filter(item => String(item.id) !== goal.dataset.id); save(); render(); toast("Goal deleted. Saved money returned to your balance.", "success", { undo: true }); }
   const pot = event.target.closest(".delete-pot"); if (pot) { pushUndo(); data.transfers = data.transfers.filter(t => t.destination !== `pot:${pot.dataset.id}`); data.pots = data.pots.filter(item => String(item.id) !== pot.dataset.id); save(); render(); toast("Pot deleted. Saved money returned to your balance.", "success", { undo: true }); }
@@ -467,11 +513,11 @@ $("#transactionForm").onsubmit = event => {
   event.preventDefault();
   const amount = number($("#amount").value); const date = $("#date").value;
   if (!(amount > 0) || !date || dateAtNoon(date).toString() === "Invalid Date") { toast("Enter a valid amount and date."); return; }
-  const base = { type: currentType, date, payment: $("#payment").value, frequency: $("#frequency").value, notes: $("#notes").value.trim().slice(0, 240), tags: $("#tags").value.split(/[,،#]/).map(x => x.trim().slice(0, 30)).filter(Boolean).slice(0, 8), generated: false, sourceId: null, occurrence: null };
+  const base = { type: currentType, date, account: $("#account").value || data.accounts[0].id, payment: $("#payment").value, frequency: $("#frequency").value, notes: $("#notes").value.trim().slice(0, 240), tags: $("#tags").value.split(/[,،#]/).map(x => x.trim().slice(0, 30)).filter(Boolean).slice(0, 8), generated: false, sourceId: null, occurrence: null };
   const mainCategory = $("#category").value;
   if (editingTransactionId) {
     pushUndo(); const index = data.transactions.findIndex(item => item.id === editingTransactionId);
-    if (index >= 0) { const old = data.transactions[index]; data.transactions[index] = { ...old, ...base, id: old.id, amount, category: mainCategory, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : base.frequency }; removeAutoTransfer(old.id); if (base.type === "income") applySavingsRule(data.transactions[index]); }
+    if (index >= 0) { const old = data.transactions[index]; data.transactions[index] = { ...old, ...base, id: old.id, amount, category: mainCategory, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : base.frequency }; const updated = data.transactions[index]; if (old.type === "income" && base.type !== "income") removeAutoTransfer(old.id); if (old.type !== "income" && base.type === "income") applySavingsRule(updated); }
     toast("Transaction updated.", "success", { undo: true });
   } else {
     const splits = typeof readSplitRows === "function" && currentType === "expense" ? readSplitRows() : [];

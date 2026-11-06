@@ -1,0 +1,13 @@
+﻿{
+  "name": "pennywise",
+  "private": true,
+  "description": "Pennywise - private, local-first personal finance tracker",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.7",
+    "jsdom": "^26.1.0"
+  }
+}
+
