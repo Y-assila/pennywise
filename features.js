@@ -70,7 +70,7 @@ $("#manageCategoriesLink").onclick = () => openCategories(currentType);
 /* ---------- Recurring manager ---------- */
 function recurringSources() { return data.transactions.filter(t => !t.generated && t.frequency !== "One-time").sort((a, b) => (a.type === b.type ? a.category.localeCompare(b.category) : a.type === "income" ? -1 : 1)); }
 function nextOccurrence(source) {
-  for (let n = 1; n < 2000; n += 1) { const date = recurringDate(source, n); const key = dateKey(date); if (source.endDate && key > source.endDate) return null; if (date > today) return key; }
+  for (let n = 1; n < 2000; n += 1) { const date = recurringDate(source, n); const key = dateKey(date); if (source.endDate && key > source.endDate) return null; if (key > todayKey()) return key; }
   return null;
 }
 function renderRecurring() {
@@ -134,8 +134,10 @@ function renderSafeCard() {
   const limit = monthlyLimit();
   if (!limit) { el.innerHTML = `<div class="safe-card"><div><strong>Safe to spend today</strong><small>Set a monthly spending limit to see how much you can spend each day.</small></div><button class="secondary-btn" id="safeSetLimit" type="button">Set a limit</button></div>`; $("#safeSetLimit").onclick = openLimit; return; }
   const spent = totals(data.transactions.filter(thisMonth)).expense; const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(); const daysLeft = daysInMonth - today.getDate() + 1;
-  const remaining = limit - spent; const perDay = Math.max(0, remaining) / daysLeft; const pct = Math.min(100, Math.round(spent / limit * 100));
-  el.innerHTML = `<div class="safe-card ${remaining < 0 ? "over" : ""}"><div><small>${h(tr("Safe to spend today"))}</small><strong class="safe-amount">${h(money(perDay))}</strong><small>${h(remaining < 0 ? tr("You’re {m} over your monthly limit.", { m: money(-remaining) }) : tr("{m} left this month · {d} days to go", { m: money(remaining), d: daysLeft }))}</small></div><div class="safe-meter"><div class="progress"><span style="width:${pct}%;background:${remaining < 0 ? "var(--coral)" : "var(--teal)"}"></span></div><small>${h(tr("{p}% of your {m} limit", { p: pct, m: money(limit) }))}</small></div></div>`;
+  const monthEnd = dateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0)); // bills still to come this month are already spoken for
+  const scheduled = sumExpenses(upcomingItems(daysLeft).filter(i => i.date > todayKey() && i.date <= monthEnd));
+  const remaining = limit - spent - scheduled; const perDay = Math.max(0, remaining) / daysLeft; const pct = Math.min(100, Math.round(spent / limit * 100));
+  el.innerHTML = `<div class="safe-card ${remaining < 0 ? "over" : ""}"><div><small>${h(tr("Safe to spend today"))}</small><strong class="safe-amount">${h(money(perDay))}</strong><small>${h(remaining < 0 ? tr("You’re {m} over your monthly limit.", { m: money(-remaining) }) : tr("{m} left this month · {d} days to go", { m: money(remaining), d: daysLeft }))}${scheduled ? ` · ${h(tr("Includes {m} of bills still due this month.", { m: money(scheduled) }))}` : ""}</small></div><div class="safe-meter"><div class="progress"><span style="width:${pct}%;background:${remaining < 0 ? "var(--coral)" : "var(--teal)"}"></span></div><small>${h(tr("{p}% of your {m} limit", { p: pct, m: money(limit) }))}</small></div></div>`;
 }
 
 /* ---------- Bank CSV import ---------- */
