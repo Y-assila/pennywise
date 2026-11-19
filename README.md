@@ -44,11 +44,11 @@ Track spending, plan bills, grow savings and print clear reports, with no bank c
 <td><b>Upcoming bills</b>: everything due in the next 7 to 90 days, highlighted when it is close, plus your monthly recurring costs.</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/savings.webp" alt="Savings pots, emergency fund progress and budgets"></td>
+<td><img src="docs/screenshots/savings.webp" alt="Live savings pots ranked by importance: a car repair pot due soon was topped up from less important pots"></td>
 <td><img src="docs/screenshots/goals.webp" alt="Savings goals with progress and deadlines"></td>
 </tr>
 <tr>
-<td><b>Savings and budgets</b>: pots, an emergency fund built automatically from your income, and category budgets with alerts.</td>
+<td><b>Live pots</b>: rank your pots by importance. When an important pot is due soon and short, the less important ones top it up.</td>
 <td><b>Goals</b>: targets with deadlines, the weekly amount needed, and an on-track or catch-up status.</td>
 </tr>
 <tr>
@@ -90,7 +90,8 @@ Track spending, plan bills, grow savings and print clear reports, with no bank c
 
 **Saving**
 - **Savings rule**: a percentage or fixed amount of every income goes to your emergency fund when the money arrives
-- **Pots** and **goals** with progress, deadlines and weekly targets
+- **Live pots**: pots ranked by importance, each with an optional "needed by" date. When an important pot is due soon (within 7, 14, 30 or 60 days, or turn it off) and still short, the less important pots give it money, starting with the least important one. Mark a pot **Protected** and it never gives. Every move shows in Savings activity and can be undone.
+- **Goals** with progress, deadlines and weekly targets
 
 **Insight**
 - Month-by-month overview, cash-flow chart, spending breakdown and a 30-day balance trend
@@ -104,6 +105,7 @@ Track spending, plan bills, grow savings and print clear reports, with no bank c
 - **Balance** = opening balances + income − expenses − money moved to pots and goals, counting only items dated **today or earlier**.
 - **Future-dated items** (a bill you add for the 28th, next month's salary) appear in Transactions and Upcoming but don't change any total until their day arrives. An app left open past midnight picks up the new day by itself.
 - **Recurring items** create one copy per due date. If you change the date or frequency, the copies are rebuilt on the new schedule. If you correct the amount or category, Pennywise asks whether to update the earlier copies too or keep them as history.
+- **Live pot top-ups** move money between pots only, so your balance never changes. They happen when you change a pot or its order, add money, and once a day as dates come closer.
 - **The savings rule** follows the income it came from: edit the amount and the transfer is updated, change it to an expense and the transfer is removed.
 
 ## Privacy and security
@@ -149,6 +151,7 @@ The tests use Node's built-in test runner with jsdom and fake-indexeddb. They co
 | `features.js` | Categories, CSV import, filters, tags, splits, recurring manager, safe to spend, welcome guide |
 | `accounts.js` | Accounts and transfers between them |
 | `upcoming.js` | Upcoming bills, reminders and recurring costs |
+| `pots.js` | Live pots: importance order, due dates, automatic top-ups, pot editing |
 | `report.js` | Reports, printable A4 version and CSV export |
 | `i18n.js`, `i18n-landing.js` | English, French and Arabic translations |
 | `styles.css`, `design.css` | Base styles, plus the visual layer (cards, charts, motion, mobile navigation) |

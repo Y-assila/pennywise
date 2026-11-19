@@ -253,7 +253,9 @@ $("#welcomeSkip").onclick = () => finishWelcome(false);
 function renderSavingsLog() {
   const box = $("#savingsLog"); if (!box) return;
   const name = destination => { const [type, id] = String(destination).split(":"); const item = (type === "goal" ? data.goals : data.pots).find(x => String(x.id) === id); return item ? item.name : tr("Deleted"); };
-  const rows = [...data.transfers].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id))).slice(0, 10).map(t => {
+  const outOf = group => data.transfers.find(t => t.group === group && t.amount < 0);
+  const rows = data.transfers.filter(t => !t.group || t.amount > 0).sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id))).slice(0, 10).map(t => {
+    if (t.group) return `<div class="log-row live"><span class="log-date">${h(dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" }))}</span><span class="log-label">${h(tr("Moved from {f} to {t}", { f: outOf(t.group) ? name(outOf(t.group).destination) : tr("Deleted"), t: name(t.destination) }))}</span><strong><bdi dir="ltr">${h(money(t.amount))}</bdi></strong></div>`;
     const out = t.amount < 0; const label = t.automatic || String(t.id).startsWith("rule-") ? tr("Auto-saved to {d}", { d: name(t.destination) }) : out ? tr("Withdrawn from {d}", { d: name(t.destination) }) : tr("Moved to {d}", { d: name(t.destination) });
     return `<div class="log-row"><span class="log-date">${h(dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" }))}</span><span class="log-label">${h(label)}</span><strong class="${out ? "income" : "expense"}"><bdi dir="ltr">${h((out ? "+" : "−") + money(Math.abs(t.amount)))}</bdi></strong></div>`;
   }).join("");

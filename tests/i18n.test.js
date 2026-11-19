@@ -31,7 +31,7 @@ test("strings used in app scripts are translated", () => {
   const missing = new Set();
   const calls = /\b(?:tr|toast|trHtml)\(\s*"((?:[^"\\]|\\.)+)"/g;
   const markup = /<[a-z][^<>]*>\s*([A-Za-z][A-Za-z '’.,!?-]{1,60}?)\s*</g; // text inside HTML written by the scripts
-  for (const file of ["app.js", "features.js", "report.js", "accounts.js", "upcoming.js"]) {
+  for (const file of ["app.js", "features.js", "report.js", "accounts.js", "upcoming.js", "pots.js"]) {
     const source = read(file);
     for (const match of source.matchAll(calls)) { const text = JSON.parse(`"${match[1]}"`); if (!text.includes("${") && translatable(text) && !has(text)) missing.add(`${file}: ${text}`); }
     for (const match of source.matchAll(markup)) { const text = match[1].trim(); if (!ignored.has(text) && !has(text)) missing.add(`${file}: ${text}`); }

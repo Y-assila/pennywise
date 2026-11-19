@@ -276,3 +276,30 @@ html[data-theme] .sidebar .storage-warning.stale { border-color: color-mix(in sr
   .topbar-actions .lang-trigger { padding: 0; width: 38px; }
   .topbar-actions .avatar { margin-inline-start: 2px; }
 }
+/* ---------- Live pots ---------- */
+.live-control { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.live-control select { width: auto; padding: 6px 28px 6px 10px; font-size: 12px; }
+.pot-card .pot-head { gap: 8px; }
+.pot-rank { font-size: 12px; font-weight: 750; color: var(--c, var(--teal)); min-width: 22px; }
+.pot-order { display: inline-flex; gap: 4px; margin-inline-start: auto; }
+.pot-order .icon-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.pot-order .icon-btn:hover:not([disabled]) { border-color: var(--c, var(--teal)); color: var(--c, var(--teal)); }
+.pot-order .icon-btn[disabled] { opacity: .3; cursor: default; }
+.pot-card h3 .pot-lock { vertical-align: middle; margin-inline-start: 4px; }
+.pot-due { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.pot-due .icon { width: 14px; height: 14px; flex: none; }
+.pot-due.short { color: var(--coral); font-weight: 600; }
+.pot-due.ready { color: var(--teal); font-weight: 600; }
+.pot-note { display: block; margin-top: 6px; font-size: 11.5px; line-height: 1.35; }
+.pot-note.short { color: var(--coral); }
+.pot-note.received { color: var(--teal); }
+.pot-card.live-short { border-color: color-mix(in srgb, var(--coral) 45%, var(--line)); }
+.log-row.live strong { color: var(--purple); }
+.pot-card.full { margin-top: 0; width: auto; } /* the generic .full button class must not shift a full pot */
+.pot-card .pot-head .pot-icon { width: 36px; height: 36px; }
+.pot-order .icon-btn { width: 24px; height: 24px; font-size: 12px; }
+.pot-card .pot-footer { margin-top: auto; padding-top: 10px; }
+.pot-card .pot-actions { gap: 4px 12px; margin-top: 10px; }
+.pot-card .pot-actions { flex-wrap: nowrap; }
+.pot-card .pot-actions .text-btn { padding-inline: 4px; }
+.pot-card .pot-actions .delete-pot { margin-inline-start: auto; }
