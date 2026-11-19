@@ -25,7 +25,7 @@ function loadPage(page, scripts, { lang = "en" } = {}) {
   return { dom, window, document: window.document, run };
 }
 
-const loadApp = options => loadPage("app.html", ["i18n.js", "icons.js", "app.js", "report.js", "features.js", "accounts.js", "upcoming.js"], options);
+const loadApp = options => loadPage("app.html", ["i18n.js", "icons.js", "app.js", "report.js", "features.js", "accounts.js", "upcoming.js", "pots.js"], options);
 const loadLanding = options => loadPage("index.html", ["i18n-landing.js", "i18n.js", "icons.js"], options);
 
 module.exports = { loadApp, loadLanding, read, root };

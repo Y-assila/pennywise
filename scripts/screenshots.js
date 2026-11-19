@@ -22,7 +22,8 @@ const demo = () => {
     accounts: [{ id: "main", name: "Main account", kind: "bank", opening: 12000 }, { id: "cash", name: "Cash", kind: "cash", opening: 1500 }],
     transactions: tx, rule: { type: "percent", amount: 10 }, monthlyLimit: 9000, onboarded: true,
     goals: [{ id: "g1", name: "Summer trip", target: 8000, saved: 5200, deadline: d(4, 15), created: d(-4, 1) }, { id: "g2", name: "New laptop", target: 12000, saved: 3900, deadline: d(8, 1), created: d(-3, 1) }],
-    pots: [{ id: "p1", name: "Emergency fund", target: 30000, saved: 14250, color: "teal" }, { id: "p2", name: "Gifts", target: 2000, saved: 1100, color: "coral" }],
+    pots: [{ id: "p1", name: "Emergency fund", target: 30000, saved: 14250, color: "teal", locked: true }, { id: "p3", name: "Car repair", target: 1800, saved: 700, color: "yellow", due: d(0, tdy + 12) },
+      { id: "p4", name: "Holiday", target: 3000, saved: 1400, color: "purple", due: d(5, 1) }, { id: "p2", name: "Gifts", target: 2000, saved: 600, color: "coral" }],
     budgets: [{ category: "Food", amount: 1600 }, { category: "Shopping", amount: 800 }, { category: "Transport", amount: 700 }],
     settings: { name: "Sara", currency: "MAD", language: "en", lastBackup: new Date().toISOString(), reminderDays: 7 }
   };
@@ -51,6 +52,7 @@ const demo = () => {
   await shoot({ name: "transactions", view: "transactions" });
   await shoot({ name: "upcoming", before: "openUpcoming()" });
   await shoot({ name: "savings", view: "savings" });
+  await shoot({ name: "fill", view: "savings", before: 'openFill(data.pots.find(p => p.id === "p3"))' });
   await shoot({ name: "goals", view: "goals" });
   await shoot({ name: "reports", view: "reports" });
   await shoot({ name: "arabic", lang: "ar" });
