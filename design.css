@@ -217,6 +217,8 @@ html[data-theme="light"] .auth-screen { background: radial-gradient(900px 520px 
 .upcoming-item { grid-template-columns: auto 1fr auto; padding: 7px 0; }
 .upcoming-totals p { margin: 4px 0; font-size: 13px; }
 .upcoming-empty { padding: 16px 0; text-align: center; }
+.badge-group .badge.upcoming, html .badge.upcoming { background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+.table-row:has(.badge.upcoming) { opacity: .78; }
 
 /* ---------- Topbar: accounts, upcoming, language ---------- */
 .topbar { gap: 12px; }

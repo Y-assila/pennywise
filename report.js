@@ -58,7 +58,7 @@ function delta(current, previous, upIsGood) {
 function buildReport(period) {
   const r = reportRange(period);
   const s = dateKey(r.start), e = dateKey(r.end), ps = dateKey(r.prevStart), pe = dateKey(r.prevEnd);
-  const cur = data.transactions.filter(t => t.date >= s && t.date <= e);
+  const cur = data.transactions.filter(t => t.date >= s && t.date <= e && isPosted(t));
   const prev = data.transactions.filter(t => t.date >= ps && t.date <= pe);
   const tot = totals(cur), ptot = totals(prev);
   const net = tot.income - tot.expense, pnet = ptot.income - ptot.expense;

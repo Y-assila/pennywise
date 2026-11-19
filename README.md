@@ -1,62 +1,161 @@
+<div align="center">
+
+<img src="icon.svg" width="88" alt="Pennywise logo">
+
 # Pennywise
 
-Pennywise is a private, local-first personal finance tracker.
+**A private personal finance tracker that keeps everything on your device.**
 
-## Pages
+Track spending, plan bills, grow savings and print clear reports, with no bank connection, no account, no server and no tracking.
 
-- `index.html` - public landing page for GitHub Pages
-- `app.html` - local finance dashboard
+[**Open the app →**](https://pennywise.studio/app.html) &nbsp;·&nbsp; [Website](https://pennywise.studio) &nbsp;·&nbsp; [Run it locally](#run-it-locally)
 
-Financial data is stored in the browser's IndexedDB. The password is hashed locally (PBKDF2) and works as a lock screen. It does not encrypt the stored data, and there is no password recovery. The app does not connect to a bank or send financial data to a server.
+[![Tests](https://github.com/y-assila/pennywise/actions/workflows/test.yml/badge.svg)](https://github.com/y-assila/pennywise/actions/workflows/test.yml)
+![No build step](https://img.shields.io/badge/build-none-2ea44f)
+![Works offline](https://img.shields.io/badge/offline-ready-167d72)
+![Languages](https://img.shields.io/badge/languages-EN%20%C2%B7%20FR%20%C2%B7%20AR-8a78c7)
 
-Your data is stored only on this device. Use Settings > Export backup (JSON) regularly; CSV and the printable report are for reading, not restoring.
+<br>
 
-## Publish with GitHub Pages
+<img src="docs/screenshots/overview.webp" alt="Pennywise overview: safe-to-spend card, total balance, income, spending, savings rate, cash-flow chart and spending breakdown" width="100%">
 
-1. Create a new GitHub repository.
-2. Upload all files in this folder to the repository.
-3. In **Settings > Pages**, choose **Deploy from a branch**.
-4. Select the `main` branch and the `/ (root)` folder.
-5. Open the generated Pages URL. The landing page will be at the root, and the app will be available at `/app.html`.
+</div>
 
-When a custom domain is purchased, add it in **Settings > Pages > Custom domain** and follow GitHub's DNS instructions.
+---
 
-## Install as an app
+## Why Pennywise
 
-Open `app.html` over HTTPS (GitHub Pages) in Chrome, Edge or Safari and choose **Install** / **Add to Home Screen**. The app then works offline.
+| | |
+|---|---|
+| 🔒 **Private by design** | Your data is stored in your browser (IndexedDB) and never leaves the device. The app has no backend, no analytics and no outside fonts or scripts. |
+| ⚡ **Instant and offline** | Plain HTML, CSS and JavaScript with no build step. Install it as an app and it works without a connection. |
+| 🧭 **Shows what is really yours** | Future bills are listed but only count when their date arrives, and "Safe to spend today" already sets aside the bills still due this month. |
+| 🌍 **Three languages** | English, Français and العربية, with a full right-to-left layout, and dates and numbers in the chosen language. |
 
-## Reports
+## A tour
 
-The Reports page builds a detailed financial report for the selected month, week, last 3/6/12 months, year to date, or a custom range: executive summary, KPIs compared with the previous period, income vs spending chart, category and income-source tables, largest expenses, budget performance, financial-health indicators, savings and goals, and written insights. Use **Print / save PDF** for a formatted A4 document or **CSV** for the raw tables.
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/transactions.webp" alt="Transactions list with filters, tags, account badges and upcoming items"></td>
+<td width="50%"><img src="docs/screenshots/upcoming.webp" alt="Upcoming bills grouped by day with reminders and monthly recurring costs"></td>
+</tr>
+<tr>
+<td><b>Transactions</b>: search, sort and filter by date, category, tag or account. Future-dated items are marked <i>Upcoming</i>.</td>
+<td><b>Upcoming bills</b>: everything due in the next 7 to 90 days, highlighted when it is close, plus your monthly recurring costs.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/savings.webp" alt="Savings pots, emergency fund progress and budgets"></td>
+<td><img src="docs/screenshots/goals.webp" alt="Savings goals with progress and deadlines"></td>
+</tr>
+<tr>
+<td><b>Savings and budgets</b>: pots, an emergency fund built automatically from your income, and category budgets with alerts.</td>
+<td><b>Goals</b>: targets with deadlines, the weekly amount needed, and an on-track or catch-up status.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/reports.webp" alt="Report with executive summary, KPIs and income vs spending chart"></td>
+<td><img src="docs/screenshots/overview-dark.webp" alt="Overview in dark theme"></td>
+</tr>
+<tr>
+<td><b>Reports</b>: summary, key figures against the previous period, charts and insights. Print, save as PDF or export CSV.</td>
+<td><b>Light and dark themes</b>, one tap away in the top bar.</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="62%"><img src="docs/screenshots/arabic.webp" alt="Overview in Arabic with right-to-left layout"></td>
+<td width="19%"><img src="docs/screenshots/mobile.webp" alt="Mobile overview with bottom navigation"></td>
+<td width="19%"><img src="docs/screenshots/mobile-dark.webp" alt="Mobile transactions in dark theme"></td>
+</tr>
+<tr>
+<td><b>العربية</b>: a full right-to-left interface.</td>
+<td colspan="2"><b>Made for phones</b>: bottom navigation and a quick add button.</td>
+</tr>
+</table>
 
 ## Features
 
-- **Languages:** English, Français and العربية (full right-to-left layout), switchable from the top bar on every screen, including the landing page. Dates, numbers and the printable report follow the chosen language.
-- **Custom categories:** add, rename, recolour, change icons, or delete categories (Settings > Categories). Renaming updates your transactions; deleting moves them to "Other".
-- **Undo:** every change (add, edit, delete, import, reset, category and recurring changes) shows an **Undo** button for 8 seconds. `Ctrl/Cmd + Z` also works.
-- **Multiple accounts:** keep cash, bank accounts and cards separately (Settings > Accounts, or Overview > Accounts). Each has an opening balance, transactions and CSV imports go to the account you choose, and transfers between accounts never change your total balance. Deleting an account moves its contents to another one.
-- **Upcoming bills and reminders:** a compact Overview card and an Upcoming screen (Transactions > Upcoming) list what is due by date: bills, subscriptions, salary and any future-dated transaction, for the next 7 to 90 days. Choose how many days ahead (1 to 14) items are highlighted as due soon, and see your recurring and subscription costs per month. Items are recorded automatically on their due date. Reminders appear inside the app; there are no push notifications.
-- **Recurring manager:** pause, resume, end or delete subscriptions, salary and rent (Transactions > Recurring).
-- **Bank CSV import:** choose your bank's CSV, match the columns, preview, and import. Handles `;` or `,` separators, `DD/MM/YYYY` dates, `1 234,56` amounts and separate debit/credit columns. Duplicates are skipped, and categories are guessed from the description.
-- **Filters, tags and split:** filter by date, category and tag; split one receipt across several categories.
-- **Safe to spend today:** set a monthly spending limit and the Overview shows how much you can spend per day.
-- **Light and dark themes**, and a short **welcome guide** for new profiles.
+**Money in and out**
+- Income and expenses with categories, payment method, notes and up to 8 tags
+- **Split** one receipt across several categories
+- **Multiple accounts** (bank, cash, card) with opening balances. Transfers between accounts never change your total.
+- **Bank CSV import**: match the columns, preview, then import. It handles `;` or `,` separators, `DD/MM/YYYY` dates, `1 234,56` amounts and separate debit/credit columns, skips duplicates and guesses categories.
+- **Undo** for every change, by button (8 seconds) or `Ctrl/Cmd + Z`
 
-Files: `app.html` + `app.js` (core), `features.js` (new features), `accounts.js` (accounts), `upcoming.js` (upcoming bills), `report.js` (reports), `i18n.js` and `i18n-landing.js` (translations), `styles.css`, `index.html` + `public.css` (landing page).
+**Planning**
+- **Recurring** salary, rent and subscriptions, added automatically on their due date. Pause, resume, end or delete them in the recurring manager.
+- **Upcoming bills** with a reminder window (1 to 14 days) and a badge on the bell icon
+- **Safe to spend today**: your monthly limit minus what you've spent and the bills still due, divided by the days left
+- **Budgets** per category, with warnings at 80% and when over
 
-## Look and feel
+**Saving**
+- **Savings rule**: a percentage or fixed amount of every income goes to your emergency fund when the money arrives
+- **Pots** and **goals** with progress, deadlines and weekly targets
 
-- **Fonts are bundled** (`fonts/`: Inter and Noto Sans Arabic), so the app looks the same on every device and never contacts an outside server.
-- `styles.css` is the base stylesheet (deduplicated); `design.css` is the visual layer on top (cards, charts, colour accents, motion, mobile bottom navigation).
-- The landing page uses real screenshots in `screens/` (English, Français, العربية). To regenerate them after UI changes, open the app with demo data and take new 1400px-wide WebP captures named `overview-xx.webp`, `savings-xx.webp`, `reports-xx.webp`.
+**Insight**
+- Month-by-month overview, cash-flow chart, spending breakdown and a 30-day balance trend
+- **Reports** for a week, a month, the last 3/6/12 months, year to date or a custom range, as a printable A4 report or CSV
+
+**Make it yours**
+- Custom categories (rename, recolour, change the icon, delete), MAD / EUR / USD / GBP, light and dark themes, three languages, and a short welcome guide
+
+## How balances are counted
+
+- **Balance** = opening balances + income − expenses − money moved to pots and goals, counting only items dated **today or earlier**.
+- **Future-dated items** (a bill you add for the 28th, next month's salary) appear in Transactions and Upcoming but don't change any total until their day arrives. An app left open past midnight picks up the new day by itself.
+- **Recurring items** create one copy per due date. If you change the date or frequency, the copies are rebuilt on the new schedule. If you correct the amount or category, Pennywise asks whether to update the earlier copies too or keep them as history.
+- **The savings rule** follows the income it came from: edit the amount and the transfer is updated, change it to an expense and the transfer is removed.
+
+## Privacy and security
+
+- All data stays in this browser's IndexedDB. Nothing is uploaded, and there is no bank connection.
+- The password is hashed on the device with PBKDF2-SHA-256 (310,000 iterations) and works as a **lock screen**. It does **not encrypt** the stored data, and there is **no password recovery**.
+- Fonts (Inter, Noto Sans Arabic) are bundled, so the app never contacts an outside server.
+
+> [!IMPORTANT]
+> Your data exists only on this device. Use **Settings → Export backup (JSON)** regularly. CSV exports and printed reports are for reading and can't be used to restore.
+
+## Install as an app
+
+Open [pennywise.studio/app.html](https://pennywise.studio/app.html) in Chrome, Edge or Safari and choose **Install** or **Add to Home Screen**. The app then works offline. Updates download in the background the next time you're online.
+
+## Run it locally
+
+There is nothing to build. Serve the folder over `http://localhost`, because browsers only allow secure password hashing on HTTPS or localhost:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open <http://localhost:8000/app.html>.
 
 ## Development
 
-The app has no build step. To run the automated tests (logic, translations, accessibility):
-
 ```bash
 npm install
-npm test
-``` 
+```
 
-`node_modules/` is git-ignored and is never published. A GitHub Actions workflow (`.github/workflows/test.yml`) runs the tests on every push.
+```bash
+npm test
+```
+
+The tests use Node's built-in test runner with jsdom and fake-indexeddb. They cover the data logic, balances and future-dated items, recurring items, accounts, upcoming bills, translations (every visible string must exist in French and Arabic) and accessibility. GitHub Actions runs them on every push.
+
+### Project layout
+
+| File | Purpose |
+|---|---|
+| `app.html`, `app.js` | App shell and core: storage, lock screen, balances, recurring items, savings rule, rendering, undo |
+| `features.js` | Categories, CSV import, filters, tags, splits, recurring manager, safe to spend, welcome guide |
+| `accounts.js` | Accounts and transfers between them |
+| `upcoming.js` | Upcoming bills, reminders and recurring costs |
+| `report.js` | Reports, printable A4 version and CSV export |
+| `i18n.js`, `i18n-landing.js` | English, French and Arabic translations |
+| `styles.css`, `design.css` | Base styles, plus the visual layer (cards, charts, motion, mobile navigation) |
+| `index.html`, `public.css`, `screens/` | Landing page and its screenshots |
+| `sw.js`, `manifest.webmanifest` | Offline support and installation. Bump `CACHE` in `sw.js` when you ship changes. |
+| `docs/screenshots/`, `scripts/screenshots.js` | README images and the script that regenerates them with demo data |
+
+### Publishing
+
+The site is served by GitHub Pages from the `main` branch root at the custom domain in `CNAME`. The landing page is `/` and the app is `/app.html`. To publish a fork, enable **Settings → Pages → Deploy from a branch**, pick `main` and `/ (root)`, and change or remove `CNAME`.

@@ -16,6 +16,8 @@ function loadPage(page, scripts, { lang = "en" } = {}) {
   window.indexedDB = indexedDB;
   window.IDBKeyRange = IDBKeyRange;
   Object.defineProperty(window, "crypto", { value: require("crypto").webcrypto, configurable: true });
+  // The app checks the date every minute; unref the timer so a finished test file can exit.
+  window.setInterval = (fn, ms) => setInterval(fn, ms).unref();
   window.localStorage.setItem("pennywise-lang", lang);
   const context = dom.getInternalVMContext();
   scripts.forEach(file => vm.runInContext(read(file), context, { filename: file }));

@@ -25,8 +25,11 @@ const seed = { transactions: [], transfers: [], accounts: defaultAccounts(), acc
 const storageVersion = 3;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const today = new Date();
+let today = new Date(); // refreshed by refreshToday() so an app left open past midnight moves to the new day
 const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const todayKey = () => dateKey(today);
+// Future-dated items (scheduled bills, expected salary) are listed but only count once their date arrives.
+const isPosted = item => item.date <= todayKey();
 let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
 let monthKey = dateKey(viewDate).slice(0, 7);
 const isCurrentMonth = () => viewDate.getFullYear() === today.getFullYear() && viewDate.getMonth() === today.getMonth();
@@ -240,7 +243,7 @@ function cleanData(input) {
     frequency: ["One-time", "Monthly", "Weekly"].includes(t.frequency) ? t.frequency : "One-time",
     notes: String(t.notes || "").slice(0, 240), generated: Boolean(t.generated), sourceId: t.sourceId || null, occurrence: t.occurrence || null,
     tags: (Array.isArray(t.tags) ? t.tags : String(t.tags || "").split(",")).map(x => String(x).trim().slice(0, 30)).filter(Boolean).slice(0, 8),
-    splitId: t.splitId || null, paused: Boolean(t.paused), resumeFrom: /^\d{4}-\d{2}-\d{2}$/.test(t.resumeFrom) ? t.resumeFrom : null, endDate: /^\d{4}-\d{2}-\d{2}$/.test(t.endDate) ? t.endDate : null
+    splitId: t.splitId || null, pendingRule: Boolean(t.pendingRule) && t.type === "income", paused: Boolean(t.paused), resumeFrom: /^\d{4}-\d{2}-\d{2}$/.test(t.resumeFrom) ? t.resumeFrom : null, endDate: /^\d{4}-\d{2}-\d{2}$/.test(t.endDate) ? t.endDate : null
   })).filter(t => t.amount > 0) : [];
   const cleanCategoryList = (list, fallback) => {
     const seen = new Set(); const out = [];
@@ -270,16 +273,16 @@ let currentFilter = "all";
 let editingTransactionId = null;
 let transactionLimit = 25;
 
-const thisMonth = transaction => transaction.date.startsWith(monthKey);
+const thisMonth = transaction => transaction.date.startsWith(monthKey) && isPosted(transaction);
 const startOfWeek = value => { const date = new Date(value); const day = date.getDay(); date.setDate(date.getDate() - (day === 0 ? 6 : day - 1)); date.setHours(0, 0, 0, 0); return date; };
 const periodDates = period => period === "week" ? [startOfWeek(anchorDate()), new Date(startOfWeek(anchorDate()).getTime() + 6 * 86400000)] : [new Date(viewDate.getFullYear(), viewDate.getMonth(), 1), new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0)];
-const periodTransactions = period => { const [start, end] = periodDates(period); end.setHours(23, 59, 59, 999); return data.transactions.filter(t => { const date = dateAtNoon(t.date); return date >= start && date <= end; }); };
+const periodTransactions = period => { const [start, end] = periodDates(period); end.setHours(23, 59, 59, 999); return data.transactions.filter(t => { const date = dateAtNoon(t.date); return isPosted(t) && date >= start && date <= end; }); };
 const openingTotal = () => data.accounts.reduce((sum, a) => sum + a.opening, 0);
-const allBalance = () => openingTotal() + data.transactions.reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.reduce((sum, t) => sum + t.amount, 0);
+const allBalance = () => openingTotal() + data.transactions.filter(isPosted).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0) - data.transfers.filter(isPosted).reduce((sum, t) => sum + t.amount, 0);
 const accountBalance = id => {
   const account = data.accounts.find(a => a.id === id);
-  return (account ? account.opening : 0) + data.transactions.filter(t => t.account === id).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0)
-    + data.accountTransfers.reduce((sum, t) => sum + (t.to === id ? t.amount : 0) - (t.from === id ? t.amount : 0), 0);
+  return (account ? account.opening : 0) + data.transactions.filter(t => t.account === id && isPosted(t)).reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0)
+    + data.accountTransfers.filter(isPosted).reduce((sum, t) => sum + (t.to === id ? t.amount : 0) - (t.from === id ? t.amount : 0), 0);
 };
 const accountLabel = id => { const account = data.accounts.find(a => a.id === id); return account ? tr(account.name) : tr("Deleted"); };
 const totals = transactions => ({ income: transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0), expense: transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0) });
@@ -297,12 +300,12 @@ function recurringDate(source, n) {
   const cursor = new Date(sourceDate); cursor.setDate(cursor.getDate() + (source.frequency === "Weekly" ? 7 : 1) * n); return cursor;
 }
 function expandRecurringTransactions() {
+  let changed = applyDueSavingsRules();
   const originals = data.transactions.filter(t => !t.generated && t.frequency !== "One-time" && !t.paused);
-  let changed = false;
   originals.forEach(source => {
     for (let n = 1; n < 2000; n += 1) {
       const cursor = recurringDate(source, n); const key = dateKey(cursor);
-      if (cursor > today || (source.endDate && key > source.endDate)) break;
+      if (key > todayKey() || (source.endDate && key > source.endDate)) break;
       if (source.resumeFrom && key < source.resumeFrom) continue;
       const occurrence = recurringOccurrence(source, key);
       if (!data.transactions.some(t => t.occurrence === occurrence)) {
@@ -331,6 +334,8 @@ function removeAutoTransfer(incomeId) {
   if (pot) pot.saved = Math.max(0, pot.saved - transfer.amount);
 }
 function applySavingsRule(income) {
+  if (!isPosted(income)) { income.pendingRule = data.rule.type !== "off"; return; } // saved when the money actually arrives
+  income.pendingRule = false;
   if (data.rule.type === "off" || data.transfers.some(t => t.id === `rule-${income.id}`)) return;
   const ruleAmount = data.rule.type === "percent" ? income.amount * data.rule.amount / 100 : data.rule.amount;
   const amount = Math.min(Math.max(0, ruleAmount), Math.max(0, allBalance()));
@@ -339,12 +344,46 @@ function applySavingsRule(income) {
   pot.saved += amount; pot.target = Math.max(pot.target, pot.saved, emergencyRecommendation());
   data.transfers.push({ id: `rule-${income.id}`, amount, date: income.date, destination: `pot:${pot.id}`, automatic: true });
 }
+function applyDueSavingsRules() {
+  const due = data.transactions.filter(t => t.pendingRule && t.type === "income" && isPosted(t));
+  due.forEach(applySavingsRule);
+  return due.length > 0;
+}
+const ruleTransferExists = id => data.transfers.some(t => t.id === `rule-${id}`);
+// Keeps the automatic savings transfer in step when an income's amount, date or type changes.
+function syncSavingsRule(before, after) {
+  if (before.type === after.type && before.amount === after.amount && before.date === after.date) return;
+  const hadRule = before.type === "income" && (before.pendingRule || ruleTransferExists(before.id));
+  if (before.type === "income") { removeAutoTransfer(before.id); after.pendingRule = false; }
+  if (after.type === "income" && (hadRule || before.type !== "income")) applySavingsRule(after);
+}
+const copyFields = ["type", "amount", "category", "account", "payment", "notes", "tags"];
+// Applies an edit and keeps a recurring item's auto-created copies consistent with it.
+// Returns "updated", "rescheduled" (date or frequency changed: copies rebuilt) or "copies" (details copied to earlier copies).
+function editTransaction(index, changes) {
+  const old = data.transactions[index];
+  const updated = { ...old, ...changes, id: old.id, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : changes.frequency };
+  data.transactions[index] = updated;
+  syncSavingsRule(old, updated);
+  if (old.generated || old.frequency === "One-time") return "updated";
+  const copies = data.transactions.filter(t => t.generated && t.sourceId === old.id);
+  if (!copies.length) return "updated";
+  if (old.date !== updated.date || old.frequency !== updated.frequency) {
+    copies.forEach(copy => removeAutoTransfer(copy.id));
+    data.transactions = data.transactions.filter(t => !copies.includes(t)); // expandRecurringTransactions() recreates them on the new schedule
+    return "rescheduled";
+  }
+  const changed = copyFields.filter(field => JSON.stringify(old[field]) !== JSON.stringify(updated[field]));
+  if (!changed.length || !confirm(tr("Also apply these changes to the {n} earlier copies of this recurring item?", { n: copies.length }))) return "updated";
+  copies.forEach(copy => { const before = { ...copy }; changed.forEach(field => { copy[field] = Array.isArray(updated[field]) ? [...updated[field]] : updated[field]; }); syncSavingsRule(before, copy); });
+  return "copies";
+}
 function emergencyRecommendation() {
   const months = [];
   for (let offset = 0; offset < 3; offset += 1) {
     const date = new Date(today.getFullYear(), today.getMonth() - offset, 1);
     const key = dateKey(date).slice(0, 7);
-    months.push(totals(data.transactions.filter(t => t.type === "expense" && t.date.startsWith(key))).expense);
+    months.push(totals(data.transactions.filter(t => t.type === "expense" && isPosted(t) && t.date.startsWith(key))).expense);
   }
   const nonZero = months.filter(value => value > 0);
   return Math.round((nonZero.length ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length : 0) * 3);
@@ -423,7 +462,7 @@ function transactionMarkup(t, table = false) {
   const tagHtml = (t.tags || []).map(tag => `<span class="tag">#${h(tag)}</span>`).join("");
   const note = h(t.notes || tr(t.payment)); const label = h(t.category); const amount = `<bdi dir="ltr">${h((t.type === "income" ? "+" : "−") + money(t.amount))}</bdi>`;
   const categoryIcon = iconMarkup(icons[t.category] || "overview"); const dateText = dateAtNoon(t.date).toLocaleDateString(locale(), { month: "short", day: "numeric" });
-  const badges = `${data.accounts.length > 1 ? `<span class="badge">${h(accountLabel(t.account))}</span>` : ""}${t.splitId ? '<span class="badge">Split</span>' : ""}${t.generated ? '<span class="badge">Auto</span>' : ""}`;
+  const badges = `${data.accounts.length > 1 ? `<span class="badge">${h(accountLabel(t.account))}</span>` : ""}${t.splitId ? '<span class="badge">Split</span>' : ""}${t.generated ? '<span class="badge">Auto</span>' : ""}${isPosted(t) ? "" : `<span class="badge upcoming">${h(tr("Upcoming"))}</span>`}`;
   return table ? `<div class="table-row"><div><strong class="table-category-icon" style="--cat:${h(categoryColors[t.category] || "#b7c4bd")}">${categoryIcon}${label}</strong><small>${note}${tagHtml}</small></div><span>${dateText}</span><span class="badge-group"><span class="badge">${h(t.frequency)}</span>${badges}</span><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`
     : `<div class="transaction-item"><div class="transaction-icon ${t.type}" style="--cat:${h(categoryColors[t.category] || "#b7c4bd")}">${categoryIcon}</div><div class="transaction-info"><strong>${label}</strong><small>${note} · ${dateText}${tagHtml}</small></div><strong class="transaction-amount ${t.type}">${amount}</strong>${actions}</div>`;
 }
@@ -435,7 +474,7 @@ function renderTransactions() {
   const search = ($("#transactionSearch")?.value || "").toLowerCase().trim(); const from = $("#filterFrom")?.value || "", to = $("#filterTo")?.value || ""; const cat = $("#filterCategory")?.value || "", tag = $("#filterTag")?.value || "", acct = $("#filterAccount")?.value || "";
   const all = [...data.transactions].sort(sorters[sort] || sorters.newest);
   const list = all.filter(t => (currentFilter === "all" || t.type === currentFilter) && `${t.category} ${tr(t.category)} ${t.notes} ${(t.tags || []).join(" ")}`.toLowerCase().includes(search) && (!from || t.date >= from) && (!to || t.date <= to) && (!cat || t.category === cat) && (!acct || t.account === acct) && (!tag || (t.tags || []).includes(tag)));
-  const recent = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  const recent = data.transactions.filter(isPosted).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   $("#recentTransactions").innerHTML = recent.map(t => transactionMarkup(t)).join("") || emptyState("transactions", "No transactions yet.", "Add your first income or expense to see your money come to life.", ["transaction", "Add transaction"]);
   $("#transactionTable").innerHTML = list.slice(0, transactionLimit).map(t => transactionMarkup(t, true)).join("") || emptyState("search", "No transactions match.", "Try changing your search or filters.");
   $("#showMoreTransactions").hidden = list.length <= transactionLimit; $("#showMoreTransactions").textContent = tr("Show more ({n} remaining)", { n: list.length - transactionLimit });
@@ -517,8 +556,8 @@ $("#transactionForm").onsubmit = event => {
   const mainCategory = $("#category").value;
   if (editingTransactionId) {
     pushUndo(); const index = data.transactions.findIndex(item => item.id === editingTransactionId);
-    if (index >= 0) { const old = data.transactions[index]; data.transactions[index] = { ...old, ...base, id: old.id, amount, category: mainCategory, generated: old.generated, sourceId: old.sourceId, occurrence: old.occurrence, frequency: old.generated ? old.frequency : base.frequency }; const updated = data.transactions[index]; if (old.type === "income" && base.type !== "income") removeAutoTransfer(old.id); if (old.type !== "income" && base.type === "income") applySavingsRule(updated); }
-    toast("Transaction updated.", "success", { undo: true });
+    const result = index >= 0 ? editTransaction(index, { ...base, amount, category: mainCategory }) : "updated";
+    toast(result === "rescheduled" ? "Recurring item updated and its schedule rebuilt." : result === "copies" ? "Transaction and its earlier copies updated." : "Transaction updated.", "success", { undo: true });
   } else {
     const splits = typeof readSplitRows === "function" && currentType === "expense" ? readSplitRows() : [];
     const splitTotal = splits.reduce((sum, part) => sum + part.amount, 0);
@@ -550,7 +589,21 @@ $("#resetDataBtn").onclick = () => { if (confirm(tr("Reset all your data? You ca
 $$(".segmented button").forEach(button => button.onclick = () => { $$(".segmented button").forEach(item => item.classList.remove("active")); button.classList.add("active"); currentFilter = button.dataset.filter; transactionLimit = 25; renderTransactions(); }); $("#transactionSearch").oninput = () => { transactionLimit = 25; renderTransactions(); }; $("#transactionSort").onchange = () => { transactionLimit = 25; renderTransactions(); }; $("#showMoreTransactions").onclick = () => { transactionLimit += 25; renderTransactions(); };
 $("#exportBtn").onclick = () => { const rows = [["Type", "Date", "Category", "Amount", "Payment method", "Frequency", "Notes"], ...data.transactions.map(t => [t.type, t.date, t.category, t.amount, t.payment, t.frequency, t.notes])]; const safe = value => { const text = String(value); return /^[=+\-@\t\r]/.test(text) && Number.isNaN(Number(text)) ? "'" + text : text; }; const csv = rows.map(row => row.map(value => `"${safe(value).replaceAll('"', '""')}"`).join(",")).join("\r\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "pennywise-transactions.csv"; link.click(); URL.revokeObjectURL(link.href); toast("CSV export downloaded."); };
 
-$("#todayLabel").textContent = today.toLocaleDateString(locale(), { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase(); $("#date").value = dateKey(today);
+const renderTodayLabel = () => { $("#todayLabel").textContent = today.toLocaleDateString(locale(), { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase(); };
+renderTodayLabel(); $("#date").value = dateKey(today);
+// An installed app can stay open for days: when the date changes, post what became due and redraw.
+function refreshToday(now = new Date()) {
+  const wasCurrentMonth = isCurrentMonth(), dayChanged = dateKey(now) !== todayKey();
+  today = now;
+  if (!dayChanged) return false;
+  if (wasCurrentMonth) { viewDate = new Date(today.getFullYear(), today.getMonth(), 1); monthKey = dateKey(viewDate).slice(0, 7); }
+  renderTodayLabel();
+  if (unlocked) { expandRecurringTransactions(); render(); }
+  return true;
+}
+setInterval(() => refreshToday(), 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshToday(); });
+window.addEventListener("focus", () => refreshToday());
 document.addEventListener("keydown", event => { if (event.key === "Escape") closeModals(); if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z" && unlocked && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) { event.preventDefault(); undoLast(); } });
 initAuth();
 
