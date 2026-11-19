@@ -52,6 +52,7 @@ const demo = () => {
   await shoot({ name: "transactions", view: "transactions" });
   await shoot({ name: "upcoming", before: "openUpcoming()" });
   await shoot({ name: "savings", view: "savings" });
+  await shoot({ name: "fill", view: "savings", before: 'openFill(data.pots.find(p => p.id === "p3"))' });
   await shoot({ name: "goals", view: "goals" });
   await shoot({ name: "reports", view: "reports" });
   await shoot({ name: "arabic", lang: "ar" });

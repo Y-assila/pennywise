@@ -8,94 +8,104 @@ const run = code => { const value = app.run(code); return value !== null && type
 const offset = days => run(`dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + (${days}), 12))`);
 const pot = (id, saved, target, extra = {}) => ({ id, name: id, saved, target, color: "teal", ...extra });
 // Pots are created through transfers, so the balance and each pot's history agree with `saved`.
-const setPots = (pots, settings = {}) => run(`data = cleanData(${JSON.stringify({
-  accounts: [{ id: "main", name: "Main account", kind: "bank", opening: 100000 }],
-  rule: { type: "off", amount: 20 }, settings,
+const setPots = pots => run(`data = cleanData(${JSON.stringify({
+  accounts: [{ id: "main", name: "Main account", kind: "bank", opening: 100000 }], rule: { type: "off", amount: 20 },
   pots, transfers: pots.filter(p => p.saved).map(p => ({ id: `seed-${p.id}`, amount: p.saved, date: offset(-30), destination: `pot:${p.id}` }))
-})}); syncCategories();`);
+})}); syncCategories(); render();`);
 const saved = () => run("Object.fromEntries(data.pots.map(p => [p.id, p.saved]))");
 const potTransfers = id => run(`data.transfers.filter(t => t.destination === "pot:${id}").reduce((s, t) => s + t.amount, 0)`);
+const submit = selector => document.querySelector(selector).dispatchEvent(new app.window.Event("submit", { cancelable: true }));
+const click = selector => document.querySelector(selector).click();
 
-test("an important pot due soon is topped up by the least important pots first", () => {
-  setPots([pot("rent", 200, 1000, { due: offset(10) }), pot("trip", 500, 2000), pot("gifts", 400, 500)]);
-  const before = run("allBalance()");
-  const moves = run("rebalancePots()");
-  assert.deepEqual(saved(), { rent: 1000, trip: 100, gifts: 0 });
-  assert.deepEqual(moves.map(m => [m.from, m.amount]), [["gifts", 400], ["trip", 400]]);
-  assert.equal(run("allBalance()"), before, "moving money between pots never changes the balance");
-  for (const id of ["rent", "trip", "gifts"]) assert.equal(potTransfers(id), saved()[id], `${id}: history matches the amount saved`);
-});
-
-test("pots due later than the live window, or already past, are left alone", () => {
-  setPots([pot("later", 0, 1000, { due: offset(45) }), pot("past", 0, 1000, { due: offset(-1) }), pot("spare", 800, 800)]);
-  assert.equal(run("rebalancePots().length"), 0);
-  run(`data.settings.liveWindow = 60`);
-  run("rebalancePots()");
-  assert.deepEqual(saved(), { later: 800, past: 0, spare: 0 });
-});
-
-test("protected pots and more important pots never give money", () => {
-  setPots([pot("emergency", 5000, 6000), pot("car", 0, 1000, { due: offset(3) }), pot("safe", 900, 900, { locked: true }), pot("fun", 300, 600)]);
-  run("rebalancePots()");
-  assert.deepEqual(saved(), { emergency: 5000, car: 300, safe: 900, fun: 0 });
-  run("render()");
-  const card = document.querySelectorAll("#potsGrid .pot-card")[1];
-  assert.ok(card.classList.contains("live-short"));
-  assert.match(card.textContent, /Still 700\.00 MAD short/);
-  assert.match(card.textContent, /Topped up 300\.00 MAD/);
-});
-
-test("live pots can be turned off", () => {
-  setPots([pot("rent", 0, 1000, { due: offset(2) }), pot("trip", 500, 2000)], { liveWindow: 0 });
-  assert.equal(run("rebalancePots().length"), 0);
-  assert.equal(run("cleanData({ settings: { liveWindow: 99 } }).settings.liveWindow"), 30, "invalid windows fall back to 30 days");
-});
-
-test("an important pot that becomes due as the days pass is topped up automatically", () => {
-  setPots([pot("rent", 0, 500, { due: offset(31) }), pot("trip", 700, 2000)]);
+test("money never moves between pots on its own", () => {
+  setPots([pot("rent", 0, 1000, { due: offset(3) }), pot("gifts", 500, 500)]);
   run("unlocked = true; expandRecurringTransactions()");
-  assert.deepEqual(saved(), { rent: 0, trip: 700 });
   run(`refreshToday(new Date("${offset(1)}T08:00:00"))`);
-  assert.deepEqual(saved(), { rent: 500, trip: 200 });
+  assert.deepEqual(saved(), { rent: 0, gifts: 500 });
   run("refreshToday(new Date()); unlocked = false");
 });
 
-test("reordering pots changes who gives to whom, and can be undone", () => {
-  setPots([pot("trip", 600, 600), pot("rent", 0, 400, { due: offset(5) })]);
-  assert.equal(run("rebalancePots().length"), 0, "the less important pot cannot take from a more important one");
-  run("render()");
-  document.querySelector('.pot-move[data-id="rent"][data-dir="-1"]').click();
-  assert.deepEqual(run("data.pots.map(p => p.id)"), ["rent", "trip"]);
-  assert.deepEqual(saved(), { rent: 400, trip: 200 });
-  run("undoLast()");
-  assert.deepEqual(run("data.pots.map(p => p.id)"), ["trip", "rent"]);
-  assert.deepEqual(saved(), { trip: 600, rent: 0 });
+test("the fill plan proposes the least important pots first and skips protected ones", () => {
+  setPots([pot("emergency", 5000, 6000), pot("rent", 200, 1000), pot("safe", 900, 900, { locked: true }), pot("trip", 500, 2000), pot("gifts", 400, 500)]);
+  assert.deepEqual(run(`fillPlan(data.pots[1]).map(p => [p.donor.id, p.amount])`), [["gifts", 400], ["trip", 400]]);
+  assert.deepEqual(run(`fillPlan(data.pots[3]).map(p => p.donor.id)`), ["gifts"], "only pots below it are proposed");
+  assert.equal(run(`fillPlan(data.pots[4]).length`), 0, "the least important pot has nothing below it");
 });
 
-test("editing a pot saves its date and protection, and the activity log shows top-ups once", () => {
-  setPots([pot("rent", 0, 300), pot("gifts", 500, 500)]);
-  run("render()");
-  document.querySelector('.edit-pot[data-id="rent"]').click();
-  assert.equal(document.querySelector("#potName").value, "rent");
-  document.querySelector("#potDue").value = offset(7);
-  document.querySelector("#potForm").dispatchEvent(new app.window.Event("submit", { cancelable: true }));
-  assert.equal(run('data.pots[0].due'), offset(7));
-  assert.deepEqual(saved(), { rent: 300, gifts: 200 });
+test("you confirm the fill, can change amounts or untick a pot, and the balance stays the same", () => {
+  setPots([pot("rent", 200, 1000), pot("trip", 500, 2000), pot("gifts", 400, 500)]);
+  const balance = run("allBalance()");
+  click('.fill-pot[data-id="rent"]');
+  assert.ok(document.querySelector("#fillModal").classList.contains("open"));
+  assert.deepEqual(saved(), { rent: 200, trip: 500, gifts: 400 }, "opening the dialog moves nothing");
+  document.querySelector('[data-amount="gifts"]').value = "150";
+  document.querySelector('[data-donor="trip"]').checked = false;
+  document.querySelector("#fillList").dispatchEvent(new app.window.Event("input", { bubbles: true }));
+  assert.match(document.querySelector("#fillTotal").textContent, /Moving 150\.00 MAD · 650\.00 MAD still needed/);
+  submit("#fillForm");
+  assert.deepEqual(saved(), { rent: 350, trip: 500, gifts: 250 });
+  assert.equal(run("allBalance()"), balance);
+  for (const id of ["rent", "trip", "gifts"]) assert.equal(potTransfers(id), saved()[id], `${id}: history matches the amount saved`);
   run("renderSavingsLog()");
   const rows = [...document.querySelectorAll("#savingsLog .log-row.live")];
-  assert.equal(rows.length, 1);
-  assert.match(rows[0].textContent, /Moved from gifts to rent/);
+  assert.equal(rows.length, 1); assert.match(rows[0].textContent, /Moved from gifts to rent/);
+  run("undoLast()");
+  assert.deepEqual(saved(), { rent: 200, trip: 500, gifts: 400 });
+});
+
+test("a pot can never give more than it holds", () => {
+  setPots([pot("rent", 0, 1000), pot("gifts", 100, 500)]);
+  click('.fill-pot[data-id="rent"]');
+  document.querySelector('[data-amount="gifts"]').value = "999";
+  submit("#fillForm");
+  assert.deepEqual(saved(), { rent: 100, gifts: 0 });
+});
+
+test("the fill button only appears when a pot is short and a pot below it can give", () => {
+  setPots([pot("full", 500, 500), pot("short", 0, 300), pot("empty", 0, 100), pot("locked", 400, 400, { locked: true })]);
+  const buttons = [...document.querySelectorAll(".fill-pot")].map(b => b.dataset.id);
+  assert.deepEqual(buttons, []);
+  setPots([pot("short", 0, 300), pot("spare", 50, 100)]);
+  assert.deepEqual([...document.querySelectorAll(".fill-pot")].map(b => b.dataset.id), ["short"]);
+});
+
+test("you choose the order with the arrows, and it can be undone", () => {
+  setPots([pot("trip", 600, 600), pot("rent", 0, 400)]);
+  click('.pot-move[data-id="rent"][data-dir="-1"]');
+  assert.deepEqual(run("data.pots.map(p => p.id)"), ["rent", "trip"]);
+  assert.deepEqual(saved(), { rent: 0, trip: 600 }, "changing the order moves no money");
+  assert.equal(document.querySelector("#potsGrid .pot-rank").textContent, "#1");
+  run("undoLast()");
+  assert.deepEqual(run("data.pots.map(p => p.id)"), ["trip", "rent"]);
+});
+
+test("a due date is a reminder: the pot is highlighted when it is close and short", () => {
+  setPots([pot("car", 100, 900, { due: offset(10) }), pot("later", 0, 900, { due: offset(90) }), pot("ready", 900, 900, { due: offset(5) })]);
+  const cards = [...document.querySelectorAll("#potsGrid .pot-card")];
+  assert.deepEqual(cards.map(c => c.classList.contains("due-soon")), [true, false, false]);
+  assert.match(cards[0].textContent, /10 days left/);
+  assert.match(cards[2].textContent, /Ready/);
+});
+
+test("editing a pot saves its date and protection", () => {
+  setPots([pot("rent", 0, 300), pot("gifts", 500, 500)]);
+  click('.edit-pot[data-id="rent"]');
+  assert.equal(document.querySelector("#potName").value, "rent");
+  document.querySelector("#potDue").value = offset(7);
+  document.querySelector("#potLocked").checked = true;
+  submit("#potForm");
+  assert.equal(run("data.pots[0].due"), offset(7));
+  assert.equal(run("data.pots[0].locked"), true);
+  assert.deepEqual(saved(), { rent: 0, gifts: 500 }, "saving a pot moves no money");
   const kept = run("cleanData(data)");
-  assert.equal(kept.pots[0].due, offset(7));
-  assert.ok(kept.transfers.some(t => t.group), "the link between both halves of a move survives saving");
+  assert.equal(kept.pots[0].due, offset(7)); assert.equal(kept.pots[0].locked, true);
 });
 
 test("deleting a pot returns exactly what it holds to the balance", () => {
-  setPots([pot("rent", 0, 300, { due: offset(4) }), pot("gifts", 500, 500)]);
-  run("rebalancePots()");
+  setPots([pot("rent", 0, 300), pot("gifts", 500, 500)]);
+  run("movePotMoney(data.pots[1], data.pots[0], 300); render()");
   const balance = run("allBalance()");
-  run("render()");
-  document.querySelector('.delete-pot[data-id="rent"]').click();
+  click('.delete-pot[data-id="rent"]');
   assert.equal(run("allBalance()"), balance + 300);
   assert.equal(potTransfers("gifts"), 200);
 });
