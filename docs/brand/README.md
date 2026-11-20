@@ -26,7 +26,7 @@ Supporting line, already in the app: *Small steps add up.*
 | [`../../social-card.png`](../../social-card.png) | Link preview image (1200×630) shown when the site is shared |
 | [`../../favicon.svg`](../../favicon.svg) | Browser tabs. Drops the stitching and coin ring, which blur below 32 px. |
 
-App icons in the repository root: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (Android), `apple-touch-icon.png` (iPhone, 180 px) and `favicon-32.png`.
+App icons in the repository root: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (Android), `apple-touch-icon.png` (iPhone, 180 px) `favicon-32.png` and `favicon.ico` (16, 32 and 48 px). The pages link the icons with `?v=2`: raise that number when the logo changes, or browsers keep showing the old icon.
 
 ### Using the logo
 
