@@ -29,5 +29,24 @@ const jobs = [
     await page.close();
     console.log(`wrote ${job.out} (${width}x${height})`);
   }
+  // favicon.ico for browsers, bookmarks and search engines that ask for it by name.
+  // An ICO file can hold PNG images directly, so each size is rendered and packed as is.
+  const sizes = [16, 32, 48], images = [];
+  for (const size of sizes) {
+    const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 });
+    await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${read("favicon.svg")}`);
+    images.push(await page.screenshot({ omitBackground: true }));
+    await page.close();
+  }
+  const header = Buffer.alloc(6); header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(sizes.length, 4);
+  let offset = 6 + 16 * sizes.length;
+  const entries = sizes.map((size, i) => {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(size, 0); entry.writeUInt8(size, 1); entry.writeUInt16LE(1, 4); entry.writeUInt16LE(32, 6);
+    entry.writeUInt32LE(images[i].length, 8); entry.writeUInt32LE(offset, 12); offset += images[i].length;
+    return entry;
+  });
+  fs.writeFileSync(path.join(root, "favicon.ico"), Buffer.concat([header, ...entries, ...images]));
+  console.log(`wrote favicon.ico (${sizes.join(", ")})`);
   await browser.close();
 })();
