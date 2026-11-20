@@ -1,8 +1,11 @@
 <div align="center">
 
-<img src="icon.svg" width="88" alt="Pennywise logo">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/pennywise-lockup-dark.svg">
+  <img src="docs/brand/pennywise-lockup.svg" alt="Pennywise" width="300">
+</picture>
 
-# Pennywise
+### Your money, kept in your pocket.
 
 **A private personal finance tracker that keeps everything on your device.**
 
@@ -161,7 +164,9 @@ The tests use Node's built-in test runner with jsdom and fake-indexeddb. They co
 | `styles.css`, `design.css` | Base styles, plus the visual layer (cards, charts, motion, mobile navigation) |
 | `index.html`, `public.css`, `screens/` | Landing page and its screenshots |
 | `sw.js`, `manifest.webmanifest` | Offline support and installation. Bump `CACHE` in `sw.js` when you ship changes. |
-| `docs/screenshots/`, `scripts/screenshots.js` | README images and the script that regenerates them with demo data |
+| `docs/screenshots/`, `scripts/screenshots.js` | README images and the script that regenerates them with demo data (`--landing` also redoes `screens/`) |
+| `docs/brand/`, `scripts/brand/` | [Brand guide](docs/brand/README.md), logo files and the scripts that build the logos and app icons |
+| `icon.svg`, `favicon.svg`, `*.png` icons | App icon, browser-tab icon, and home-screen and install icons |
 
 ### Publishing
 
