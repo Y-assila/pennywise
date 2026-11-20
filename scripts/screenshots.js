@@ -30,8 +30,8 @@ const demo = () => {
 };
 (async () => {
   const browser = await chromium.launch();
-  const shoot = async ({ name, lang = "en", theme = "light", view = "overview", mobile = false, before }) => {
-    const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1400, height: 900 }, deviceScaleFactor: 2 });
+  const shoot = async ({ name, lang = "en", theme = "light", view = "overview", mobile = false, landing = false, before }) => {
+    const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : landing ? { viewport: { width: 1400, height: 875 }, deviceScaleFactor: 1 } : { viewport: { width: 1400, height: 900 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     const errors = []; page.on("pageerror", e => errors.push(e.message));
     await page.addInitScript(l => { localStorage.setItem("pennywise-lang", l); }, lang);
@@ -59,5 +59,7 @@ const demo = () => {
   await shoot({ name: "french", lang: "fr", view: "reports" });
   await shoot({ name: "mobile", mobile: true });
   await shoot({ name: "mobile-dark", mobile: true, theme: "dark", view: "transactions" });
+  // Landing page images (screens/<view>-<lang>), 1400x875. Convert the PNGs to WebP afterwards.
+  if (process.argv.includes("--landing")) for (const lang of ["en", "fr", "ar"]) for (const view of ["overview", "savings", "reports"]) await shoot({ name: `landing-${view}-${lang}`, lang, view, landing: true });
   await browser.close();
 })();

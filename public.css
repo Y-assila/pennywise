@@ -197,3 +197,7 @@ html[dir="rtl"] .text-link .icon, html[dir="rtl"] .button .icon, html[dir="rtl"]
 @font-face{font-family:"Inter";font-weight:800;font-display:swap;src:url(fonts/inter-ExtraBold.woff2) format("woff2")}
 @font-face{font-family:"Noto Sans Arabic";font-weight:400 600;font-display:swap;src:url(fonts/noto-arabic-Regular.woff2) format("woff2");unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F,U+2066-2069}
 @font-face{font-family:"Noto Sans Arabic";font-weight:700 800;font-display:swap;src:url(fonts/noto-arabic-Bold.woff2) format("woff2");unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F,U+2066-2069}
+
+/* ---------- Brand ---------- */
+img.brand-mark { display: block; flex: none; width: 34px; height: 34px; padding: 0; background: none; border-radius: 23%; box-shadow: 0 6px 16px rgba(22, 125, 114, .28); }
+.brand > span { text-transform: lowercase; letter-spacing: -0.035em; }

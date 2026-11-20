@@ -6,17 +6,18 @@
   <meta name="theme-color" content="#10171a">
   <title>Pennywise — Personal finance tracker</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css?v=13">
-  <link rel="stylesheet" href="design.css?v=14">
+  <link rel="stylesheet" href="design.css?v=15">
 <script>try{var d=document.documentElement;d.dataset.theme=localStorage.getItem("pennywise-theme")||"dark";var l=localStorage.getItem("pennywise-lang")||(navigator.language||"en").slice(0,2);if(l==="ar"){d.lang="ar";d.dir="rtl"}else if(l==="fr"){d.lang="fr"}}catch(e){}</script>
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
       <div class="menu-wrap lang-menu auth-lang"><button class="icon-button lang-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Language"><span data-icon="globe"></span><span class="lang-code">EN</span></button><div class="popover popover-end lang-list" hidden><button type="button" data-lang="en">English</button><button type="button" data-lang="fr">Français</button><button type="button" data-lang="ar" lang="ar">العربية</button></div></div>
-      <div class="brand auth-brand"><span class="brand-mark" data-icon="sparkles"></span><span>Pennywise</span></div>
+      <div class="brand auth-brand"><img class="brand-mark" src="icon.svg" alt="" width="28" height="28"><span>Pennywise</span></div>
       <p class="eyebrow" id="authEyebrow">PRIVATE LOCAL FINANCE APP</p>
       <h1 id="authTitle">Create your password</h1>
       <p class="muted" id="authDescription">Choose a password to protect this browser’s local finance data.</p>
@@ -33,7 +34,7 @@
   </section>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark" data-icon="sparkles"></span><span>Pennywise</span></div>
+      <div class="brand"><img class="brand-mark" src="icon.svg" alt="" width="28" height="28"><span>Pennywise</span></div>
       <p class="eyebrow">YOUR MONEY, CLEARER</p>
       <nav class="nav" aria-label="Primary navigation">
         <button class="nav-item active" data-view="overview" aria-current="page"><span data-icon="overview"></span>Overview</button>
@@ -56,7 +57,7 @@
     <main class="main">
       <header class="topbar">
         <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation menu" aria-expanded="false"><span data-icon="overview"></span></button>
-        <div class="mobile-brand"><span class="brand-mark" data-icon="sparkles"></span> Pennywise</div>
+        <div class="mobile-brand"><img class="brand-mark" src="icon.svg" alt="" width="28" height="28"> Pennywise</div>
         <div class="topbar-left">
           <div class="menu-wrap" id="accountsMenu"><button class="pill-btn" id="accountsTrigger" type="button" aria-haspopup="true" aria-expanded="false"><span data-icon="wallet"></span><span id="accountsLabel">Accounts</span><span class="pill-caret" data-icon="chevronDown"></span></button><div class="popover" id="accountsPopover" hidden></div></div>
         </div>

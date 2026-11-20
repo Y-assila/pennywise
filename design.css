@@ -238,7 +238,7 @@ html[data-theme="light"] .auth-screen { background: radial-gradient(900px 520px 
 .lang-code { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
 .topbar-actions .avatar { margin-inline-start: 6px; }
 .bell-badge { position: absolute; top: 3px; inset-inline-end: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--coral); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; display: grid !important; place-items: center; }
-.bell-badge[hidden] { display: none !important; }
+.bell-badge[hidden], .topbar-actions .icon-button > .bell-badge[hidden] { display: none !important; } /* beats the forced inline-flex above */
 .popover { position: absolute; top: calc(100% + 8px); inset-inline-start: 0; z-index: 60; width: 340px; max-width: 92vw; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); animation: modal-in 0.18s var(--ease) both; }
 .popover[hidden] { display: none; }
 .popover-end { inset-inline-start: auto; inset-inline-end: 0; }
@@ -310,3 +310,11 @@ html[data-theme] .sidebar .storage-warning.stale { border-color: color-mix(in sr
 .pot-card .fill-pot.quiet { width: auto; padding: 4px 0; text-align: start; font-size: 12px; font-weight: 600; }
 .fill-row strong { display: block; font-size: 14px; font-weight: 650; color: inherit; }
 .fill-row small, .fill-row small.muted { font-weight: 500; font-size: 12px; color: var(--muted); }
+
+/* ---------- Brand ---------- */
+/* The logo file carries its own teal tile, so the old icon box styling is switched off. */
+img.brand-mark { display: block; flex: none; width: 30px; height: 30px; padding: 0; background: none; border-radius: 23%; box-shadow: 0 6px 16px color-mix(in srgb, var(--teal) 28%, transparent); }
+.mobile-brand img.brand-mark { width: 26px; height: 26px; }
+/* The wordmark is set lowercase; the name stays "Pennywise" in the page text and in sentences. */
+.brand > span, .mobile-brand { text-transform: lowercase; letter-spacing: -0.035em; }
+.mobile-brand { gap: 8px; }
